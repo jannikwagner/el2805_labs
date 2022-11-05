@@ -1,5 +1,6 @@
 import itertools
 import numpy as np
+import matplotlib.pyplot as plt
 
 X_MIN = 0
 Y_MIN = 0
@@ -18,6 +19,27 @@ def dynamic_programming(P, R, T):
     for t in range(T-1):
         u = (R + P @ u).max(axis=1)
     return u
+
+
+def value_iteration(P, R, lamda, epsilon=0.01, T=10**10):
+    delta = np.inf
+    deltas = []
+    V = R.max(axis=1)
+    values = [V]
+    for t in range(T-1):
+        V_new = (R + lamda * P @ V).max(axis=1)
+        delta = euclidean(V-V_new)
+
+        V = V_new
+        values.append(V_new)
+        deltas.append(delta)
+        if delta <= epsilon*(1-lamda)/lamda:
+            break
+    return V, values, deltas
+
+
+def euclidean(x):
+    return np.sqrt(np.sum(np.square(x)))
 
 
 def get_policy(P, R, V):
@@ -67,6 +89,9 @@ class MDP:
 
     def apply_policy(self, pi, s0, T):
         return apply_policy(self.P, self.R, pi, s0, T)
+
+    def value_iteration(self, lamda, epsilon=0.01, T=10**10):
+        return value_iteration(self.P, self.R, lamda, epsilon, T)
 
 
 def get_probability_a(x, y, a, x_next, y_next, obstacles):
@@ -162,11 +187,31 @@ if __name__ == "__main__":
     print("b) solve using dynamic programming")
     T = WIDTH * HEIGHT + 1  # in our case, 5+5+1 is sufficient
     V = mdp.dynamic_programming(T)
-    print("V:\n", V.reshape(7, 6).T)
+    print("V:\n", V.reshape(WIDTH, HEIGHT).T)
 
     pi = mdp.get_policy(V)
-    print("pi:\n", pi.reshape(7, 6).T)
+    print("pi:\n", pi.reshape(WIDTH, HEIGHT).T)
 
     states, actions, r_sum = mdp.apply_policy(pi, 0, T)
     print("action sequence:\n", actions)
     print("state sequence:\n", [state_to_coordinates(s) for s in states])
+
+    # c) Value iteration
+    print()
+    print("c) Value iteration")
+    lamda = 0.99
+    epsilon = 0.01
+    V, values, deltas = mdp.value_iteration(lamda, epsilon)
+    print("V:\n", V.reshape(WIDTH, HEIGHT).T)
+    print("deltas:\n", deltas)
+    values = np.array(values)
+    T, S = values.shape
+
+    for s in range(NUM_STATES):
+        plt.plot(range(T), values[:, s], label=state_to_coordinates(s))
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("V(s)")
+    plt.show()
+
+    # d) modified problem
