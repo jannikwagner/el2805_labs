@@ -13,6 +13,38 @@ NUM_STATES = WIDTH * HEIGHT
 NUM_ACTIONS = 5
 
 
+def dynamic_programming(P, R, T):
+    u = R.max(axis=1)
+    for t in range(T-1):
+        u = (R + P @ u).max(axis=1)
+    return u
+
+
+def get_policy(P, R, V):
+    pi = (R + P @ V).argmax(axis=1)
+    return pi
+
+
+def apply_policy(P, R, pi, s0, T):
+    n_states = P.shape[0]
+    s = s0
+    states = [s0]
+    actions = []
+    rewards = []
+    r_sum = 0
+    for t in range(T):
+        a = pi[s]
+        r = R[s, a]
+        r_sum += r
+        s_next = np.random.choice(n_states, p=P[s, a, :])
+        s = s_next
+
+        actions.append(a)
+        rewards.append(r)
+        states.append(s_next)
+    return states, actions, r_sum
+
+
 class MDP:
     def __init__(self, P: np.ndarray, R: np.ndarray):
         assert len(P.shape) == 3
@@ -28,10 +60,13 @@ class MDP:
         self.num_actions = l
 
     def dynamic_programming(self, T):
-        u = self.R.max(axis=1)
-        for t in range(T-1):
-            u = (self.R + self.P @ u).max(axis=1)
-        return u
+        return dynamic_programming(self.P, self.R, T)
+
+    def get_policy(self, V):
+        return get_policy(self.P, self.R, V)
+
+    def apply_policy(self, pi, s0, T):
+        return apply_policy(self.P, self.R, pi, s0, T)
 
 
 def get_probability_a(x, y, a, x_next, y_next, obstacles):
@@ -69,7 +104,15 @@ def apply_action(x, y, a, obstacles):
     return x_new, y_new
 
 
+def state_to_coordinates(s):
+    x = s // HEIGHT
+    y = s % HEIGHT
+    return (x, y)
+
+
 if __name__ == "__main__":
+
+    # a) Define The MDP
     obstacles = {(2, 0), (2, 1), (2, 2), (1, 4),
                  (2, 4), (3, 4), (4, 4), (5, 4)}
 
@@ -97,14 +140,23 @@ if __name__ == "__main__":
 
     R = R_.reshape(NUM_STATES, NUM_ACTIONS)
 
-    print(R_[:, :, 0].T)
-    print(R_[:, :, 1].T)
-    print(R_[:, :, 2].T)
-    print(R_[:, :, 3].T)
-    print(R_[:, :, 4].T)
+    # print(R_[:, :, 0].T)
+    # print(R_[:, :, 1].T)
+    # print(R_[:, :, 2].T)
+    # print(R_[:, :, 3].T)
+    # print(R_[:, :, 4].T)
 
     mdp = MDP(P, R)
 
+    # b) solve using dynamic programming
+    print("b) solve using dynamic programming")
     T = WIDTH + HEIGHT + 1
-    u = mdp.dynamic_programming(T)
-    print(u.reshape(7, 6).T)
+    V = mdp.dynamic_programming(T)
+    print("V:\n", V.reshape(7, 6).T)
+
+    pi = mdp.get_policy(V)
+    print("pi:\n", pi.reshape(7, 6).T)
+
+    states, actions, r_sum = mdp.apply_policy(pi, 0, T)
+    print("action sequence:\n", actions)
+    print("state sequence:\n", [state_to_coordinates(s) for s in states])
