@@ -35,14 +35,7 @@ class MDP:
 
 
 def get_probability_a(x, y, a, x_next, y_next, obstacles):
-    x_new, y_new = apply_action(x, y, a)
-
-    move_illegal = outside_map(x_new, y_new) or (x_new, y_new) in obstacles
-    if move_illegal:
-        stayed_at_position = (x, y) == (x_next, y_next)
-        if stayed_at_position:
-            return 1
-        return 0
+    x_new, y_new = apply_action(x, y, a, obstacles)
 
     if (x_new, y_new) == (x_next, y_next):
         return 1
@@ -54,25 +47,31 @@ def outside_map(x, y):
     return x < 0 or y < 0 or x > X_MAX or y > Y_MAX
 
 
-def apply_action(x, y, a):
+def apply_action(x, y, a, obstacles):
+    x_new, y_new = x, y
     if a == 0:  # up
-        y -= 1
+        y_new -= 1
     elif a == 1:  # right
-        x += 1
+        x_new += 1
     elif a == 2:  # down
-        y += 1
+        y_new += 1
     elif a == 3:  # left
-        x -= 1
+        x_new -= 1
     elif a == 4:  # stay
         pass
     else:
         raise RuntimeError
-    return x, y
+
+    move_illegal = outside_map(x_new, y_new) or (x_new, y_new) in obstacles
+    if move_illegal:
+        return x, y
+
+    return x_new, y_new
 
 
 if __name__ == "__main__":
-    obstacles = {(2, 0), (2, 1), (2, 2), (4, 1),
-                 (4, 2), (4, 3), (4, 4), (4, 5)}
+    obstacles = {(2, 0), (2, 1), (2, 2), (1, 4),
+                 (2, 4), (3, 4), (4, 4), (5, 4)}
 
     P_: np.ndarray = np.zeros((WIDTH, HEIGHT, NUM_ACTIONS, WIDTH, HEIGHT))
     for x, y, a, x_next, y_next in itertools.product(range(WIDTH), range(HEIGHT), range(NUM_ACTIONS), range(WIDTH), range(HEIGHT)):
@@ -87,19 +86,25 @@ if __name__ == "__main__":
 
     R_ = np.zeros((WIDTH, HEIGHT, NUM_ACTIONS))
 
+    A = (0, 0)
+    B = (5, 5)
     R_ = R_ + NEGATIVE_REWARD
-    R_[5, 3, 1] = POSITIVE_REWARD
-    R_[6, 3, 4] = POSITIVE_REWARD
-    R_[6, 4, 0] = POSITIVE_REWARD
-    R_[6, 2, 2] = POSITIVE_REWARD
+
+    for x, y, a in itertools.product(range(WIDTH), range(HEIGHT), range(NUM_ACTIONS)):
+        x_new, y_new = apply_action(x, y, a, obstacles)
+        if (x_new, y_new) == B:
+            R_[x, y, a] = POSITIVE_REWARD
 
     R = R_.reshape(NUM_STATES, NUM_ACTIONS)
 
-    print(P)
-    print(R)
+    print(R_[:, :, 0].T)
+    print(R_[:, :, 1].T)
+    print(R_[:, :, 2].T)
+    print(R_[:, :, 3].T)
+    print(R_[:, :, 4].T)
 
     mdp = MDP(P, R)
 
     T = WIDTH + HEIGHT + 1
     u = mdp.dynamic_programming(T)
-    print(u.reshape(7, 6))
+    print(u.reshape(7, 6).T)
