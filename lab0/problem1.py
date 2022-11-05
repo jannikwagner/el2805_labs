@@ -138,6 +138,16 @@ if __name__ == "__main__":
         if (x_new, y_new) == B:
             R_[x, y, a] = POSITIVE_REWARD
 
+        # with more time we don't want to keep collecting reward
+        # thus the reward of staying on B should be 0
+        # this means that we have to punish moving away from B
+        # (with more than the reward for moving there)
+        # so that we do not alternate between B and its neighbours
+        if (x, y) == B:
+            R_[x, y, a] = - 2*POSITIVE_REWARD  # punish moving away
+            if a == 4:
+                R_[x, y, a] = 0  # no reward for staying
+
     R = R_.reshape(NUM_STATES, NUM_ACTIONS)
 
     # print(R_[:, :, 0].T)
@@ -150,7 +160,7 @@ if __name__ == "__main__":
 
     # b) solve using dynamic programming
     print("b) solve using dynamic programming")
-    T = WIDTH + HEIGHT + 1
+    T = WIDTH * HEIGHT + 1  # in our case, 5+5+1 is sufficient
     V = mdp.dynamic_programming(T)
     print("V:\n", V.reshape(7, 6).T)
 
