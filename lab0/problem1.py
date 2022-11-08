@@ -135,6 +135,37 @@ def state_to_coordinates(s):
     return (x, y)
 
 
+def coordinates_to_state(x, y):
+    return x*HEIGHT + y
+
+
+def evaluate_value_iteration(mdp, lamda, epsilon):
+    V, values, deltas = mdp.value_iteration(lamda, epsilon)
+    print("V:\n", V.reshape(WIDTH, HEIGHT).T)
+    print("deltas:\n", deltas)
+    values = np.array(values)
+    T, S = values.shape
+
+    for s in range(NUM_STATES):
+        plt.plot(range(T), values[:, s], label=state_to_coordinates(s))
+    plt.legend()
+    plt.xlabel("t")
+    plt.ylabel("V(s)")
+    plt.show()
+
+
+def evaluate_dynamic_programming(mdp, T):
+    V = mdp.dynamic_programming(T)
+    print("V:\n", V.reshape(WIDTH, HEIGHT).T)
+
+    pi = mdp.get_policy(V)
+    print("pi:\n", pi.reshape(WIDTH, HEIGHT).T)
+
+    states, actions, r_sum = mdp.apply_policy(pi, 0, T)
+    print("action sequence:\n", actions)
+    print("state sequence:\n", [state_to_coordinates(s) for s in states])
+
+
 if __name__ == "__main__":
 
     # a) Define The MDP
@@ -186,32 +217,28 @@ if __name__ == "__main__":
     # b) solve using dynamic programming
     print("b) solve using dynamic programming")
     T = WIDTH * HEIGHT + 1  # in our case, 5+5+1 is sufficient
-    V = mdp.dynamic_programming(T)
-    print("V:\n", V.reshape(WIDTH, HEIGHT).T)
-
-    pi = mdp.get_policy(V)
-    print("pi:\n", pi.reshape(WIDTH, HEIGHT).T)
-
-    states, actions, r_sum = mdp.apply_policy(pi, 0, T)
-    print("action sequence:\n", actions)
-    print("state sequence:\n", [state_to_coordinates(s) for s in states])
+    evaluate_dynamic_programming(mdp, T)
 
     # c) Value iteration
     print()
     print("c) Value iteration")
     lamda = 0.99
     epsilon = 0.01
-    V, values, deltas = mdp.value_iteration(lamda, epsilon)
-    print("V:\n", V.reshape(WIDTH, HEIGHT).T)
-    print("deltas:\n", deltas)
-    values = np.array(values)
-    T, S = values.shape
-
-    for s in range(NUM_STATES):
-        plt.plot(range(T), values[:, s], label=state_to_coordinates(s))
-    plt.legend()
-    plt.xlabel("t")
-    plt.ylabel("V(s)")
-    plt.show()
+    evaluate_value_iteration(mdp, lamda, epsilon)
 
     # d) modified problem
+    print("d) modified problem")
+    R1 = (0, 5)
+    R2 = (6, 3)
+    mu_R = R.copy().reshape(WIDTH, HEIGHT, NUM_ACTIONS)  # mean of random reward
+    mu_R[6, 2, 2] = NEGATIVE_REWARD + 0.5 * 1 * NEGATIVE_REWARD
+    mu_R[6, 4, 0] = NEGATIVE_REWARD + 0.5 * 1 * NEGATIVE_REWARD
+    mu_R[5, 3, 1] = NEGATIVE_REWARD + 0.5 * 1 * NEGATIVE_REWARD
+
+    mu_R[0, 4, 2] = NEGATIVE_REWARD + 0.5 * 6 * NEGATIVE_REWARD
+    mu_R[1, 5, 3] = NEGATIVE_REWARD + 0.5 * 6 * NEGATIVE_REWARD
+    mu_R = mu_R.reshape(NUM_STATES, NUM_ACTIONS)
+
+    mdp = MDP(P, mu_R)
+    evaluate_dynamic_programming(mdp, T)
+    evaluate_value_iteration(mdp, lamda, epsilon)
