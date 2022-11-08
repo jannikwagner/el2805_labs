@@ -94,8 +94,17 @@ class MDP:
         return value_iteration(self.P, self.R, lamda, epsilon, T)
 
 
-def get_probability_a(x, y, a, x_next, y_next, obstacles):
-    x_new, y_new = apply_action(x, y, a, obstacles)
+def get_probability_1a(x, y, a, x_next, y_next, obstacles):
+    x_new, y_new = apply_action_no_collision(x, y, a, obstacles)
+
+    if (x_new, y_new) == (x_next, y_next):
+        return 1
+
+    return 0
+
+
+def get_probability_2a(x, y, a, x_next, y_next):
+    x_new, y_new = apply_action_not_outside(x, y, a)
 
     if (x_new, y_new) == (x_next, y_next):
         return 1
@@ -107,7 +116,29 @@ def outside_map(x, y):
     return x < 0 or y < 0 or x > X_MAX or y > Y_MAX
 
 
-def apply_action(x, y, a, obstacles):
+def apply_action_no_collision(x, y, a, obstacles):
+    """applies the action and does not move into obstacles or outside the map"""
+    x_new, y_new = apply_action_without_check(x, y, a)
+
+    move_illegal = outside_map(x_new, y_new) or (x_new, y_new) in obstacles
+    if move_illegal:
+        return x, y
+
+    return x_new, y_new
+
+
+def apply_action_not_outside(x, y, a):
+    """applies the action and does not move outside the map"""
+    x_new, y_new = apply_action_without_check(x, y, a)
+
+    if outside_map(x_new, y_new):
+        return x, y
+
+    return x_new, y_new
+
+
+def apply_action_without_check(x, y, a):
+    """applies the actin but does not check for collision"""
     x_new, y_new = x, y
     if a == 0:  # up
         y_new -= 1
@@ -121,11 +152,6 @@ def apply_action(x, y, a, obstacles):
         pass
     else:
         raise RuntimeError
-
-    move_illegal = outside_map(x_new, y_new) or (x_new, y_new) in obstacles
-    if move_illegal:
-        return x, y
-
     return x_new, y_new
 
 
@@ -172,27 +198,27 @@ if __name__ == "__main__":
     obstacles = {(2, 0), (2, 1), (2, 2), (1, 4),
                  (2, 4), (3, 4), (4, 4), (5, 4)}
 
-    P_: np.ndarray = np.zeros((WIDTH, HEIGHT, NUM_ACTIONS, WIDTH, HEIGHT))
+    P: np.ndarray = np.zeros((WIDTH, HEIGHT, NUM_ACTIONS, WIDTH, HEIGHT))
     for x, y, a, x_next, y_next in itertools.product(range(WIDTH), range(HEIGHT), range(NUM_ACTIONS), range(WIDTH), range(HEIGHT)):
-        P_[x, y, a, x_next, y_next] = get_probability_a(
+        P[x, y, a, x_next, y_next] = get_probability_1a(
             x, y, a, x_next, y_next, obstacles)
 
-    P = P_.reshape(NUM_STATES, NUM_ACTIONS, WIDTH, HEIGHT).reshape(
+    P = P.reshape(NUM_STATES, NUM_ACTIONS, WIDTH, HEIGHT).reshape(
         NUM_STATES, NUM_ACTIONS, NUM_STATES)
 
     NEGATIVE_REWARD = - 0.01
     POSITIVE_REWARD = 1
 
-    R_ = np.zeros((WIDTH, HEIGHT, NUM_ACTIONS))
+    R = np.zeros((WIDTH, HEIGHT, NUM_ACTIONS))
 
     A = (0, 0)
     B = (5, 5)
-    R_ = R_ + NEGATIVE_REWARD
+    R = R + NEGATIVE_REWARD
 
     for x, y, a in itertools.product(range(WIDTH), range(HEIGHT), range(NUM_ACTIONS)):
-        x_new, y_new = apply_action(x, y, a, obstacles)
+        x_new, y_new = apply_action_no_collision(x, y, a, obstacles)
         if (x_new, y_new) == B:
-            R_[x, y, a] = POSITIVE_REWARD
+            R[x, y, a] = POSITIVE_REWARD
 
         # with more time we don't want to keep collecting reward
         # thus the reward of staying on B should be 0
@@ -200,11 +226,11 @@ if __name__ == "__main__":
         # (with more than the reward for moving there)
         # so that we do not alternate between B and its neighbours
         if (x, y) == B:
-            R_[x, y, a] = - 2*POSITIVE_REWARD  # punish moving away
+            R[x, y, a] = - 2*POSITIVE_REWARD  # punish moving away
             if a == 4:
-                R_[x, y, a] = 0  # no reward for staying
+                R[x, y, a] = 0  # no reward for staying
 
-    R = R_.reshape(NUM_STATES, NUM_ACTIONS)
+    R = R.reshape(NUM_STATES, NUM_ACTIONS)
 
     # print(R_[:, :, 0].T)
     # print(R_[:, :, 1].T)
@@ -242,3 +268,35 @@ if __name__ == "__main__":
     mdp = MDP(P, mu_R)
     evaluate_dynamic_programming(mdp, T)
     evaluate_value_iteration(mdp, lamda, epsilon)
+
+    # problem 2
+    # a)
+    # reward of moving into obstacles is set to -inf
+    # -> we do not need to block it in transitions
+    W = np.array([
+        [0, 1, -np.inf, 10, 10, 10, 10],
+        [0, 1, -np.inf, 10, 0, 0, 10],
+        [0, 1, -np.inf, 10, 0, 0, 10],
+        [0, 1, 1, 1, 0, 0, 0],
+        [0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf, 10],
+        [0, 0, 0, 0, 0, 11, 10]
+    ])
+    R2 = np.zeros((WIDTH, HEIGHT, NUM_ACTIONS))
+    for x, y, a in itertools.product(range(WIDTH), range(HEIGHT), range(NUM_ACTIONS)):
+        x_new, y_new = apply_action_not_outside(x, y, a)
+        R2[x, y, a] = W[x_new, y_new]
+    R2.reshape(NUM_STATES, NUM_ACTIONS)
+
+    # allow transition to non zero cells
+    P2 = np.zeros((WIDTH, HEIGHT, NUM_ACTIONS, WIDTH, HEIGHT))
+    for x, y, a, x_next, y_next in itertools.product(range(WIDTH), range(HEIGHT), range(NUM_ACTIONS), range(WIDTH), range(HEIGHT)):
+        P2[x, y, a, x_next, y_next] = get_probability_2a(
+            x, y, a, x_next, y_next)
+
+    P2 = P2.reshape(NUM_STATES, NUM_ACTIONS, WIDTH, HEIGHT).reshape(
+        NUM_STATES, NUM_ACTIONS, NUM_STATES)
+
+    mdp1 = MDP(P, R2)
+    mdp2 = MDP(P2, R2)
+
+    # b)
