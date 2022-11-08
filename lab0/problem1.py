@@ -265,9 +265,9 @@ if __name__ == "__main__":
     mu_R[1, 5, 3] = NEGATIVE_REWARD + 0.5 * 6 * NEGATIVE_REWARD
     mu_R = mu_R.reshape(NUM_STATES, NUM_ACTIONS)
 
-    mdp = MDP(P, mu_R)
-    evaluate_dynamic_programming(mdp, T)
-    evaluate_value_iteration(mdp, lamda, epsilon)
+    mdp_d = MDP(P, mu_R)
+    evaluate_dynamic_programming(mdp_d, T)
+    evaluate_value_iteration(mdp_d, lamda, epsilon)
 
     # problem 2
     # a) modified problem
@@ -310,14 +310,29 @@ if __name__ == "__main__":
     # apparently it does not make a difference whether I delete
     # the blocking of the obstacles from the transition probabilities
     # (since I block them with the reward now anyway)
+    # However, if it wanted to stay on a filed with obstacle above,
+    # in the old case it would always choose up (lowest index 0),
+    # since the transition is blocked, but in the new case it would
+    # then move into the obstacle and receive -inf reward,
+    # thus it would not do that.
     for T in range(12, 21):
         print("T:", T)
-        V = mdp.dynamic_programming(T)
+        V = mdp2.dynamic_programming(T)
 
-        pi = mdp.get_policy(V)
+        pi = mdp2.get_policy(V)
 
-        states, actions, r_sum = mdp1.apply_policy(pi, 0, T)
+        states, actions, r_sum = mdp2.apply_policy(pi, 0, T)
         print("action sequence:\n", actions)
         print("state sequence:\n", [state_to_coordinates(s) for s in states])
 
-    # c)
+    # c) value iteration
+    V = mdp1.value_iteration(T)
+
+    pi = mdp1.get_policy(V)
+
+    states, actions, r_sum = mdp1.apply_policy(pi, 0, T)
+    print("action sequence:\n", actions)
+    print("state sequence:\n", [state_to_coordinates(s) for s in states])
+    # TODO: debug - RuntimeWarning: overflow encountered in square
+    # running forever, probably infinity values
+    
