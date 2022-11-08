@@ -270,7 +270,9 @@ if __name__ == "__main__":
     evaluate_value_iteration(mdp, lamda, epsilon)
 
     # problem 2
-    # a)
+    # a) modified problem
+    print("2.a) modified problem")
+
     # reward of moving into obstacles is set to -inf
     # -> we do not need to block it in transitions
     W = np.array([
@@ -284,8 +286,8 @@ if __name__ == "__main__":
     R2 = np.zeros((WIDTH, HEIGHT, NUM_ACTIONS))
     for x, y, a in itertools.product(range(WIDTH), range(HEIGHT), range(NUM_ACTIONS)):
         x_new, y_new = apply_action_not_outside(x, y, a)
-        R2[x, y, a] = W[x_new, y_new]
-    R2.reshape(NUM_STATES, NUM_ACTIONS)
+        R2[x, y, a] = W[y_new, x_new]  # pay attention to the indices!
+    R2 = R2.reshape(NUM_STATES, NUM_ACTIONS)
 
     # allow transition to non zero cells
     P2 = np.zeros((WIDTH, HEIGHT, NUM_ACTIONS, WIDTH, HEIGHT))
@@ -299,4 +301,23 @@ if __name__ == "__main__":
     mdp1 = MDP(P, R2)
     mdp2 = MDP(P2, R2)
 
-    # b)
+    # b) dynamic programming
+    print("2.b) - updated reward")
+    print("did not change transition matrix")
+    evaluate_dynamic_programming(mdp1, 12)
+    print("did change transition matrix")
+    evaluate_dynamic_programming(mdp2, 12)
+    # apparently it does not make a difference whether I delete
+    # the blocking of the obstacles from the transition probabilities
+    # (since I block them with the reward now anyway)
+    for T in range(12, 21):
+        print("T:", T)
+        V = mdp.dynamic_programming(T)
+
+        pi = mdp.get_policy(V)
+
+        states, actions, r_sum = mdp1.apply_policy(pi, 0, T)
+        print("action sequence:\n", actions)
+        print("state sequence:\n", [state_to_coordinates(s) for s in states])
+
+    # c)
