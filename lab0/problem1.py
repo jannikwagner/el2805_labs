@@ -180,7 +180,7 @@ def evaluate_value_iteration(mdp, lamda, epsilon):
     plt.show()
 
 
-def evaluate_dynamic_programming(mdp, T):
+def evaluate_dynamic_programming(mdp: MDP, T):
     V = mdp.dynamic_programming(T)
     print("V:\n", V.reshape(WIDTH, HEIGHT).T)
 
@@ -326,13 +326,12 @@ if __name__ == "__main__":
         print("state sequence:\n", [state_to_coordinates(s) for s in states])
 
     # c) value iteration
-    V = mdp1.value_iteration(T)
+    V, values, deltas = mdp2.value_iteration(lamda, epsilon)
 
-    pi = mdp1.get_policy(V)
+    pi = mdp2.get_policy(V)
 
     states, actions, r_sum = mdp1.apply_policy(pi, 0, T)
     print("action sequence:\n", actions)
     print("state sequence:\n", [state_to_coordinates(s) for s in states])
     # TODO: debug - RuntimeWarning: overflow encountered in square
     # running forever, probably infinity values
-    
