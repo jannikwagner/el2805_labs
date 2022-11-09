@@ -17,32 +17,75 @@
 # gym for the Reinforcement Learning environment
 import numpy as np
 import gym
+from collections import deque
+import torch
+import random
+
+buffer_size = 10**6
+buffer = deque(maxlen=buffer_size)
+
+
+def sample_from_buffer(buffer, n):
+    indices = np.random.choice(len(buffer), n, replace=False)
+    return [buffer[i] for i in indices]
+
+
+class Network(torch.nn.Module):
+    def __init__(self, n, m):
+        super(Network, self).__init__()
+        self.fc1 = torch.nn.Linear(n, 8)
+        self.fc2 = torch.nn.Linear(8, m)
+
+    def forward(self, x):
+        x = torch.nn.functional.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
 
 ### CREATE RL ENVIRONMENT ###
-env = gym.make('CartPole-v0')        # Create a CartPole environment
+# Create a CartPole environment
+env = gym.make('CartPole-v0')
 n = len(env.observation_space.low)   # State space dimensionality
 m = env.action_space.n               # Number of actions
+
+nn = Network(n, m)
+
+optimizer = torch.optim.Adam(nn.parameters(), lr=0.01)
+
+num_samples = 3
 
 ### PLAY ENVIRONMENT ###
 # The next while loop plays 5 episode of the environment
 for episode in range(5):
     state = env.reset()                  # Reset environment, returns initial
-                                         # state
+    # state
     done = False                         # Boolean variable used to indicate if
-                                         # an episode terminated
+    # an episode terminated
 
     while not done:
         env.render()                     # Render the environment
-                                         # (DO NOT USE during training of the
-                                         # labs...)
-        action  = np.random.randint(m)   # Pick a random integer between
-                                         # [0, m-1]
+        state_tensor = torch.tensor([state], requires_grad=False)
+        action = nn(state_tensor).argmax(1).item()
 
+        if len(buffer) > num_samples:
+            optimizer.zero_grad()
+            samples = sample_from_buffer(buffer, num_samples)
+            state_tensor = torch.tensor([s[0] for s in samples])
+            actions = torch.tensor([s[1] for s in samples])
+            action_tensor = nn(state_tensor)
+            y = action_tensor[actions]
+            z = torch.zeros_like(y)
+            loss = torch.nn.functional.mse_loss(y, z)
 
-        # The next line takes permits you to take an action in the RL environment
-        # env.step(action) returns 4 variables:
-        # (1) next state; (2) reward; (3) done variable; (4) additional stuff
-        next_state, reward, done, _ = env.step(action)
+            loss.backward()
+            optimizer.step()
+
+            torch.nn.utils.clip_grad_norm_(nn.parameters(), 1)
+
+        next_state, reward, done, *_ = env.step(action)
+
+        entry = (state, action, reward, next_state, done)
+        buffer.append(entry)
 
         state = next_state
 
