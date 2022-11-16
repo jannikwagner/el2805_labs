@@ -9,6 +9,7 @@ methods = ['DynProg', 'ValIter']
 
 # Some colours
 LIGHT_RED = '#FFC4CC'
+RED = '#FF0000'
 LIGHT_GREEN = '#95FD99'
 BLACK = '#000000'
 WHITE = '#FFFFFF'
@@ -130,6 +131,9 @@ class Maze:
     def __eaten(self, state):
         return self.__minotaur(state) == self.__player(state)
 
+    def __at_goal(self, state):
+        return self.maze[self.__player(state)] == 2
+
     def __transitions(self):
         """ Computes the transition probabilities for every state action pair.
             :return numpy.tensor transition probabilities: tensor of transition
@@ -142,7 +146,7 @@ class Maze:
         # Compute the transition probabilities. Note that the transitions
         # are deterministic.
         for s in range(self.n_states):
-            if self.__eaten(s):
+            if self.__eaten(s) or self.__at_goal(s):
                 transition_probabilities[s, s, :] = 1
             else:
                 for a in range(self.n_actions):
@@ -193,13 +197,20 @@ class Maze:
         for s in range(self.n_states):
             if self.__eaten(s):
                 rewards[s, :] = self.EATEN_REWARD
+            if self.__at_goal(s):
+                rewards[s, :] = self.GOAL_REWARD
 
         return rewards
 
-    def simulate(self, start, policy, method):
+    def simulate(self, start, policy, method, minotaur_start=None):
+        """ Simulates the agent in the maze."""
+        if minotaur_start is None:
+            minotaur_start = tuple(np.array(np.where(self.maze == 2))[:, 0])
         if method not in methods:
             error = 'ERROR: the argument method must be in {}'.format(methods)
             raise NameError(error)
+
+        start = start, minotaur_start
 
         path = list()
         if method == 'DynProg':
@@ -212,7 +223,8 @@ class Maze:
             path.append(start)
             while t < horizon-1:
                 # Move to next state given the policy and the current state
-                next_s = self.__move(s, policy[s, t])
+                next_s = np.random.choice(
+                    self.n_states, p=self.transition_probabilities[:, s, int(policy[s, t])])
                 # Add the position in the maze corresponding to the next state
                 # to the path
                 path.append(self.states[next_s])
@@ -226,7 +238,8 @@ class Maze:
             # Add the starting position in the maze to the path
             path.append(start)
             # Move to next state given the policy and the current state
-            next_s = self.__move(s, policy[s])
+            next_s = np.random.choice(
+                self.n_states, p=self.transition_probabilities[:, s, int(policy[s])])
             # Add the position in the maze corresponding to the next state
             # to the path
             path.append(self.states[next_s])
@@ -235,7 +248,8 @@ class Maze:
                 # Update state
                 s = next_s
                 # Move to next state given the policy and the current state
-                next_s = self.__move(s, policy[s])
+                next_s = np.random.choice(
+                    self.n_states, p=self.transition_probabilities[:, s, int(policy[s])])
                 # Add the position in the maze corresponding to the next state
                 # to the path
                 path.append(self.states[next_s])
@@ -359,15 +373,11 @@ def value_iteration(env, gamma, epsilon):
 
 
 def draw_maze(maze):
-
     # Map a color to each cell in the maze
     col_map = {0: WHITE, 1: BLACK,
                2: LIGHT_GREEN, -6: LIGHT_RED, -1: LIGHT_RED}
 
-    # Give a color to each cell
     rows, cols = maze.shape
-    colored_maze = [[col_map[maze[j, i]]
-                     for i in range(cols)] for j in range(rows)]
 
     # Create figure of the size of the maze
     fig = plt.figure(1, figsize=(cols, rows))
@@ -438,18 +448,30 @@ def animate_solution(maze, path):
         cell.set_width(1.0/cols)
 
     # Update the color at each frame
-    for i in range(len(path)):
-        grid.get_celld()[(path[i])].set_facecolor(LIGHT_ORANGE)
-        grid.get_celld()[(path[i])].get_text().set_text('Player')
-        if i > 0:
-            if path[i] == path[i-1]:
-                grid.get_celld()[(path[i])].set_facecolor(LIGHT_GREEN)
-                grid.get_celld()[(path[i])].get_text().set_text(
+    for t in range(len(path)):
+        (i, j), (k, l) = path[t]
+        grid.get_celld()[(i, j)].set_facecolor(LIGHT_ORANGE)
+        grid.get_celld()[(i, j)].get_text().set_text('Player')
+        grid.get_celld()[(k, l)].set_facecolor(RED)
+        grid.get_celld()[(k, l)].get_text().set_text('Minotaur')
+        if t > 0:
+            if (i, j) == (k, l):
+                grid.get_celld()[(i, j)].set_facecolor(RED)
+                grid.get_celld()[(i, j)].get_text().set_text(
+                    'Player was eaten')
+            elif maze[i, j] == 2:
+                grid.get_celld()[(i, j)].set_facecolor(LIGHT_GREEN)
+                grid.get_celld()[(i, j)].get_text().set_text(
                     'Player is out')
-            else:
-                grid.get_celld()[(path[i-1])
-                                 ].set_facecolor(col_map[maze[path[i-1]]])
-                grid.get_celld()[(path[i-1])].get_text().set_text('')
+
+            if path[t][0] != path[t-1][0] != path[t][1]:
+                grid.get_celld()[(path[t-1][0])
+                                 ].set_facecolor(col_map[maze[path[t-1][0]]])
+                grid.get_celld()[(path[t-1][0])].get_text().set_text('')
+            if path[t][1] != path[t-1][1] != path[t][0]:
+                grid.get_celld()[(path[t-1][1])
+                                 ].set_facecolor(col_map[maze[path[t-1][1]]])
+                grid.get_celld()[(path[t-1][1])].get_text().set_text('')
         display.display(fig)
         display.clear_output(wait=True)
         time.sleep(1)
