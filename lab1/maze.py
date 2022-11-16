@@ -121,6 +121,15 @@ class Maze:
                 minotaur_moves.append(new_state)
         return minotaur_moves
 
+    def __player(self, state):
+        return self.states[state][0]
+
+    def __minotaur(self, state):
+        return self.states[state][1]
+
+    def __eaten(self, state):
+        return self.__minotaur(state) == self.__player(state)
+
     def __transitions(self):
         """ Computes the transition probabilities for every state action pair.
             :return numpy.tensor transition probabilities: tensor of transition
@@ -133,8 +142,7 @@ class Maze:
         # Compute the transition probabilities. Note that the transitions
         # are deterministic.
         for s in range(self.n_states):
-            (i, j), (k, l) = self.states[s]
-            if (i, j) == (k, l):
+            if self.__eaten(s):
                 transition_probabilities[s, s, :] = 1
             else:
                 for a in range(self.n_actions):
@@ -154,19 +162,19 @@ class Maze:
             for s in range(self.n_states):
                 for a in range(self.n_actions):
                     next_s = self.__move(s, a)
-                    # Rewrd for hitting a wall
+                    # Reward for hitting a wall
                     if s == next_s and a != self.STAY:
                         rewards[s, a] = self.IMPOSSIBLE_REWARD
                     # Reward for reaching the exit
-                    elif s == next_s and self.maze[self.states[next_s]] == 2:
+                    elif s == next_s and self.maze[self.__player(next_s)] == 2:
                         rewards[s, a] = self.GOAL_REWARD
                     # Reward for taking a step to an empty cell that is not the exit
                     else:
                         rewards[s, a] = self.STEP_REWARD
 
                     # If there exists trapped cells with probability 0.5
-                    if random_rewards and self.maze[self.states[next_s]] < 0:
-                        row, col = self.states[next_s]
+                    if random_rewards and self.maze[self.__player(next_s)] < 0:
+                        row, col = self.__player(next_s)
                         # With probability 0.5 the reward is
                         r1 = (1 + abs(self.maze[row, col])) * rewards[s, a]
                         # With probability 0.5 the reward is
@@ -178,9 +186,13 @@ class Maze:
             for s in range(self.n_states):
                 for a in range(self.n_actions):
                     next_s = self.__move(s, a)
-                    i, j = self.states[next_s]
+                    i, j = self.__player(next_s)
                     # Simply put the reward as the weights o the next state.
                     rewards[s, a] = weights[i][j]
+
+        for s in range(self.n_states):
+            if self.__eaten(s):
+                rewards[s, :] = self.EATEN_REWARD
 
         return rewards
 
