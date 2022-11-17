@@ -41,11 +41,12 @@ class Maze:
     IMPOSSIBLE_REWARD = -100
     EATEN_REWARD = -200
 
-    def __init__(self, maze, weights=None, random_rewards=False, simultaneous=True):
+    def __init__(self, maze, weights=None, random_rewards=False, simultaneous=True, minotaur_can_stay=False):
         """ Constructor of the environment Maze.
         """
         self.maze = maze
         self.simultaneous = simultaneous
+        self.minotaur_can_stay = minotaur_can_stay
         self.actions = self.__actions()
         self.states, self.map = self.__states()
         self.n_actions = len(self.actions)
@@ -122,12 +123,12 @@ class Maze:
     def __minotaur_moves(self, state_after_player, state_before_player):
         if self.__done(state_before_player if self.simultaneous else state_after_player):
             return [state_after_player]
-        minotaur_moves = []
+        minotaur_moves = set()
         for a in range(self.n_actions):
             new_state = self.__minotaur_move(
                 state_after_player, state_before_player, a)
-            if new_state != state_after_player:
-                minotaur_moves.append(new_state)
+            if new_state != state_after_player or self.minotaur_can_stay:
+                minotaur_moves.add(new_state)
         return minotaur_moves
 
     def __next_states(self, state, action):
@@ -144,17 +145,20 @@ class Maze:
     def __minotaur(self, state):
         return self.states[state][1]
 
-    def __eaten(self, state):
+    def eaten(self, state):
         return self.__minotaur(state) == self.__player(state)
 
-    def __at_goal(self, state):
+    def __at_exit(self, state):
         return self.maze[self.__player(state)] == 2
 
-    def __win(self, state):
-        return self.__at_goal(state) and not self.__eaten(state)
+    def win(self, state):
+        return self.__at_exit(state) and not self.eaten(state)
+
+    def lose(self, state):
+        return not self.win(state)
 
     def __done(self, state):
-        return self.__eaten(state) or self.__at_goal(state)
+        return self.eaten(state) or self.__at_exit(state)
 
     def __transitions(self):
         """ Computes the transition probabilities for every state action pair.
@@ -188,10 +192,10 @@ class Maze:
                 for a in range(self.n_actions):
                     next_s = self.__player_move(s, a)
                     # Reward for being eaten
-                    if self.__eaten(s):
+                    if self.eaten(s):
                         rewards[s, a] = self.EATEN_REWARD
                     # Reward for reaching the goal
-                    elif self.__at_goal(s):
+                    elif self.__at_exit(s):
                         rewards[s, a] = self.GOAL_REWARD
                     # Reward for hitting a wall
                     elif self.__player(s) == self.__player(next_s) and a != self.STAY:
@@ -219,7 +223,7 @@ class Maze:
                     rewards[s, a] = weights[i][j]
 
         for s in range(self.n_states):
-            if self.__eaten(s):
+            if self.eaten(s):
                 rewards[s, :] = self.EATEN_REWARD
 
         return rewards
