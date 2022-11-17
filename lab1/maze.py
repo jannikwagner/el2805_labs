@@ -35,15 +35,18 @@ class Maze:
         MOVE_DOWN: "move down"
     }
 
-    # Reward values
-    STEP_REWARD = -1
-    GOAL_REWARD = 0
+    # Standard reward values
+    STEP_REWARD = 0
+    GOAL_REWARD = 1
     IMPOSSIBLE_REWARD = -100
-    EATEN_REWARD = -200
+    EATEN_REWARD = 0
 
     def __init__(self, maze, weights=None, random_rewards=False, simultaneous=True, minotaur_can_stay=False):
         """ Constructor of the environment Maze.
         """
+        # Reward values
+        self.reset_rewards()
+
         self.maze = maze
         self.simultaneous = simultaneous
         self.minotaur_can_stay = minotaur_can_stay
@@ -54,6 +57,18 @@ class Maze:
         self.transition_probabilities = self.__transitions()
         self.rewards = self.__rewards(weights=weights,
                                       random_rewards=random_rewards)
+
+    def reset_rewards(self):
+        self.STEP_REWARD = Maze.STEP_REWARD
+        self.GOAL_REWARD = Maze.GOAL_REWARD
+        self.IMPOSSIBLE_REWARD = Maze.IMPOSSIBLE_REWARD
+        self.EATEN_REWARD = Maze.EATEN_REWARD
+
+    def set_rewards(self, step, goal, impossible, eaten):
+        self.STEP_REWARD = step
+        self.GOAL_REWARD = goal
+        self.IMPOSSIBLE_REWARD = impossible
+        self.EATEN_REWARD = eaten
 
     def __actions(self):
         actions = dict()
