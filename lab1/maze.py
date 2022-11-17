@@ -41,7 +41,7 @@ class Maze:
     IMPOSSIBLE_REWARD = -100
     EATEN_REWARD = 0
 
-    def __init__(self, maze, weights=None, random_rewards=False, simultaneous=True, minotaur_can_stay=False):
+    def __init__(self, maze, weights=None, random_rewards=False, simultaneous=True, minotaur_can_stay=False, poison_prob=0):
         """ Constructor of the environment Maze.
         """
         # Reward values
@@ -50,6 +50,8 @@ class Maze:
         self.maze = maze
         self.simultaneous = simultaneous
         self.minotaur_can_stay = minotaur_can_stay
+        self.poison_prob = poison_prob
+
         self.actions = self.__actions()
         self.states, self.map = self.__states()
         self.n_actions = len(self.actions)
@@ -195,6 +197,12 @@ class Maze:
                     for next_state in next_states:
                         transition_probabilities[next_state,
                                                  s, a] += 1/len(next_states)
+            if self.poison_prob != 0 and not self.__done(s):
+                (i, j) = self.__player(s)
+                transition_probabilities[:, s, :] *= (1-self.poison_prob)
+                transition_probabilities[self.map[(
+                    (i, j), (i, j))], s, :] += self.poison_prob
+
         return transition_probabilities
 
     def __rewards(self, weights=None, random_rewards=None):
@@ -514,5 +522,6 @@ def animate_solution(maze, path):
                                  ].set_facecolor(col_map[maze[path[t-1][1]]])
                 grid.get_celld()[(path[t-1][1])].get_text().set_text('')
         display.display(fig)
+        fig.show()
         display.clear_output(wait=True)
-        time.sleep(1)
+        time.sleep(0.5)
