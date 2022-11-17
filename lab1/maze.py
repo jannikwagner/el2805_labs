@@ -150,6 +150,9 @@ class Maze:
     def __at_goal(self, state):
         return self.maze[self.__player(state)] == 2
 
+    def __win(self, state):
+        return self.__at_goal(state) and not self.__eaten(state)
+
     def __done(self, state):
         return self.__eaten(state) or self.__at_goal(state)
 
@@ -165,7 +168,7 @@ class Maze:
         # Compute the transition probabilities. Note that the transitions
         # are deterministic.
         for s in range(self.n_states):
-            if self.__eaten(s) or self.__at_goal(s):  # logic is already in __next_states
+            if self.__done(s):  # logic is already in __next_states
                 transition_probabilities[s, s, :] = 1
             else:
                 for a in range(self.n_actions):
