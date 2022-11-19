@@ -61,7 +61,7 @@ class Maze:
     IMPOSSIBLE_REWARD = -100
     EATEN_REWARD = 0
 
-    def __init__(self, maze, weights=None, random_rewards=False, simultaneous=True, minotaur_can_stay=False, poison_prob=0):
+    def __init__(self, maze, weights=None, random_rewards=False, simultaneous=True, minotaur_can_stay=False, poison_prob=1/50, minotaur_direct_move_prob=0.35):
         """ Constructor of the environment Maze.
         """
         # Reward values
@@ -71,6 +71,7 @@ class Maze:
         self.simultaneous = simultaneous
         self.minotaur_can_stay = minotaur_can_stay
         self.poison_prob = poison_prob
+        self.minotaur_direct_move_prob = minotaur_direct_move_prob
 
         self.actions = self.__actions()
         self.states, self.map = self.__states()
@@ -200,6 +201,25 @@ class Maze:
     def __done(self, state):
         return self.eaten(state) or self.__at_exit(state)
 
+    def dist(self, s):
+        state = self.states[s]
+        (i, j), (k, l) = state.player, state.minotaur
+        return self.manhattan_distance((i, j), (k, l))
+
+    def manhattan_distance(self, p1, p2):
+        (i, j), (k, l) = p1, p2
+        return abs(i-k) + abs(j-l)
+
+    def dist_2(self, s1, s2):
+        p1, p2 = self.__player(s1), self.__minotaur(s2)
+        return self.manhattan_distance(p1, p2)
+
+    def best_minotaur_move(self, s, next_states):
+        if self.simultaneous:
+            return min(next_states, key=lambda x: self.dist(x))
+        else:
+            return min(next_states, key=lambda x: self.dist_2(s, x))
+
     def __transitions(self):
         """ Computes the transition probabilities for every state action pair.
             :return numpy.tensor transition probabilities: tensor of transition
@@ -220,11 +240,21 @@ class Maze:
                     for next_state in next_states:
                         transition_probabilities[next_state,
                                                  s, a] += 1/len(next_states)
+
+                    if self.minotaur_direct_move_prob != 0:
+                        for next_state in next_states:
+                            transition_probabilities[next_state,
+                                                     s, a] *= 1-self.minotaur_direct_move_prob
+                        best_minotaur_move = self.best_minotaur_move(
+                            s, next_states)
+                        transition_probabilities[best_minotaur_move,
+                                                 s, a] += self.minotaur_direct_move_prob
+
             if self.poison_prob != 0 and not self.__done(s):
                 (i, j) = self.__player(s)
                 transition_probabilities[:, s, :] *= (1-self.poison_prob)
-                transition_probabilities[self.map[(
-                    (i, j), (i, j))], s, :] += self.poison_prob
+                transition_probabilities[self.map[State(
+                    (i, j), (i, j), self.states[s].key)], s, :] += self.poison_prob
 
         return transition_probabilities
 
