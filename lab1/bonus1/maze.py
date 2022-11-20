@@ -258,9 +258,8 @@ class Maze:
                                                  s, a] += 1/len(next_states)
 
                     if self.minotaur_direct_move_prob != 0:
-                        for next_state in next_states:
-                            transition_probabilities[next_state,
-                                                     s, a] *= 1-self.minotaur_direct_move_prob
+                        transition_probabilities[:, s, a] *= (1 -
+                                                              self.minotaur_direct_move_prob)
                         best_minotaur_move = self.best_minotaur_move(
                             s, next_states)
                         transition_probabilities[best_minotaur_move,

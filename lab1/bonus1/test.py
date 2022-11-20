@@ -1,4 +1,4 @@
-import maze2 as mz
+import maze as mz
 import numpy as np
 import matplotlib.pyplot as plt
 import qlearning as ql
