@@ -61,11 +61,10 @@ class Maze:
     IMPOSSIBLE_REWARD = -100
     EATEN_REWARD = 0
 
-    def __init__(self, maze, weights=None, random_rewards=False, simultaneous=True, minotaur_can_stay=False, poison_prob=1/50, minotaur_direct_move_prob=0.35):
+    def __init__(self, maze, simultaneous=True, minotaur_can_stay=False, poison_prob=1/50, minotaur_direct_move_prob=0.35):
         """ Constructor of the environment Maze.
         """
         # Reward values
-        self.reset_rewards()
 
         self.maze = maze
         self.simultaneous = simultaneous
@@ -73,25 +72,26 @@ class Maze:
         self.poison_prob = poison_prob
         self.minotaur_direct_move_prob = minotaur_direct_move_prob
 
+        self.minotaur_start = tuple(np.array(np.where(self.maze == 2))[:, 0])
+        self.player_start = (0, 0)
+
         self.actions = self.__actions()
         self.states, self.map = self.__states()
         self.n_actions = len(self.actions)
         self.n_states = len(self.states)
         self.transition_probabilities = self.__transitions()
-        self.rewards = self.__rewards(weights=weights,
-                                      random_rewards=random_rewards)
+        self.reset_rewards()
 
     def reset_rewards(self):
-        self.STEP_REWARD = Maze.STEP_REWARD
-        self.GOAL_REWARD = Maze.GOAL_REWARD
-        self.IMPOSSIBLE_REWARD = Maze.IMPOSSIBLE_REWARD
-        self.EATEN_REWARD = Maze.EATEN_REWARD
+        self.set_rewards(Maze.STEP_REWARD, Maze.GOAL_REWARD,
+                         Maze.IMPOSSIBLE_REWARD, Maze.EATEN_REWARD)
 
     def set_rewards(self, step, goal, impossible, eaten):
         self.STEP_REWARD = step
         self.GOAL_REWARD = goal
         self.IMPOSSIBLE_REWARD = impossible
         self.EATEN_REWARD = eaten
+        self.rewards = self.__rewards()
 
     def __actions(self):
         actions = dict()
@@ -216,9 +216,25 @@ class Maze:
 
     def best_minotaur_move(self, s, next_states):
         if self.simultaneous:
-            return min(next_states, key=lambda x: self.dist(x))
-        else:
             return min(next_states, key=lambda x: self.dist_2(s, x))
+        else:
+            return min(next_states, key=lambda x: self.dist(x))
+
+    def start_state(self, player=None, minotaur=None, key=0):
+        player = self.player_start if player is None else player
+        minotaur = self.minotaur_start if minotaur is None else minotaur
+        start_state = self.map[State(player, minotaur, key)]
+        return start_state
+
+    def reset(self):
+        return self.start_state()
+
+    def step(self, s, a):
+        next_s = np.random.choice(
+            self.n_states, p=self.transition_probabilities[:, s, a])
+        reward = self.rewards[s, a]
+        done = self.__done(s)
+        return next_s, reward, done, {}
 
     def __transitions(self):
         """ Computes the transition probabilities for every state action pair.
@@ -258,45 +274,25 @@ class Maze:
 
         return transition_probabilities
 
-    def __rewards(self, weights=None, random_rewards=None):
+    def __rewards(self):
 
         rewards = np.zeros((self.n_states, self.n_actions))
 
-        # If the rewards are not described by a weight matrix
-        if weights is None:
-            for s in range(self.n_states):
-                for a in range(self.n_actions):
-                    next_s = self.__player_move(s, a)
-                    # Reward for being eaten
-                    if self.eaten(s):
-                        rewards[s, a] = self.EATEN_REWARD
-                    # Reward for reaching the goal
-                    elif self.__at_exit(s):
-                        rewards[s, a] = self.GOAL_REWARD
-                    # Reward for hitting a wall
-                    elif self.__player(s) == self.__player(next_s) and a != self.STAY:
-                        rewards[s, a] = self.IMPOSSIBLE_REWARD
-                    # Reward for taking a step to an empty cell that is not the exit
-                    else:
-                        rewards[s, a] = self.STEP_REWARD
-
-                    # If there exists trapped cells with probability 0.5
-                    if random_rewards and self.maze[self.__player(next_s)] < 0:
-                        row, col = self.__player(next_s)
-                        # With probability 0.5 the reward is
-                        r1 = (1 + abs(self.maze[row, col])) * rewards[s, a]
-                        # With probability 0.5 the reward is
-                        r2 = rewards[s, a]
-                        # The average reward
-                        rewards[s, a] = 0.5*r1 + 0.5*r2
-        # If the weights are descrobed by a weight matrix
-        else:
-            for s in range(self.n_states):
-                for a in range(self.n_actions):
-                    next_s = self.__player_move(s, a)
-                    i, j = self.__player(next_s)
-                    # Simply put the reward as the weights o the next state.
-                    rewards[s, a] = weights[i][j]
+        for s in range(self.n_states):
+            for a in range(self.n_actions):
+                next_s = self.__player_move(s, a)
+                # Reward for being eaten
+                if self.eaten(s):
+                    rewards[s, a] = self.EATEN_REWARD
+                # Reward for reaching the goal
+                elif self.__at_exit(s):
+                    rewards[s, a] = self.GOAL_REWARD
+                # Reward for hitting a wall
+                elif self.__player(s) == self.__player(next_s) and a != self.STAY:
+                    rewards[s, a] = self.IMPOSSIBLE_REWARD
+                # Reward for taking a step to an empty cell that is not the exit
+                else:
+                    rewards[s, a] = self.STEP_REWARD
 
         for s in range(self.n_states):
             if self.eaten(s):

@@ -2,9 +2,10 @@ from typing import Tuple
 import numpy as np
 import maze as mz
 import matplotlib.pyplot as plt
+import tqdm
 
 
-def qlearning(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episodes: int) -> Tuple[np.ndarray, np.ndarray]:
+def qlearning(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episodes: int, Q=None) -> Tuple[np.ndarray, np.ndarray]:
     """
     Q-Learning algorithm
     :param env: environment
@@ -15,26 +16,36 @@ def qlearning(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episod
     :return: Q, policy
     """
     # Initialize Q
-    Q = np.zeros((env.n_states, env.n_actions))
+    if Q is None:
+        Q = np.zeros((env.n_states, env.n_actions))
+        Q[:, 1:] = 1
+        Q[:, 0] = -1
+    N = np.zeros((env.n_states, env.n_actions), dtype=int)
     # Initialize policy
-    policy = np.zeros((env.nS, env.nA))
+    policy = Q.argmax(axis=1)
     # For each episode
-    for episode in range(n_episodes):
+    for episode in tqdm.tqdm(range(n_episodes)):
+        # print("episode =", episode)
         # Reset environment
-        state = env.reset()
+        s = env.reset()
         # For each step
         while True:
             # Choose action
-            action = np.random.choice(env.nA, p=policy[state])
+            a = policy[s]
+            if np.random.random() < epsilon:
+                a = np.random.randint(env.n_actions)
+            N[s, a] += 1
             # Take action
-            next_state, reward, done, _ = env.step(action)
+            next_s, r, done, _ = env.step(s, a)
             # Update Q
-            Q[state, action] = Q[state, action] + alpha * \
-                (reward + gamma * np.max(Q[next_state]) - Q[state, action])
+            Q[s, a] = Q[s, a] + 1/N[s, a]**alpha * \
+                (r + gamma * np.max(Q[next_s]) - Q[s, a])
             # Update policy
-            policy[state] = np.eye(env.nA)[np.argmax(Q[state])]
+            policy[s] = np.argmax(Q[s])
             # Update state
-            state = next_state
+            # if env.win(next_s):
+            #     print(env.states[s], a, r, env.states[next_s])
+            s = next_s
             # If done
             if done:
                 break
