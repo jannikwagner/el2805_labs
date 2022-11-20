@@ -113,6 +113,9 @@ class Maze:
                 states[s] = state_representation
                 map[state_representation] = s
                 s += 1
+        self.winning_state = [map[State((i, j), (0, 0), 1)]
+                              for i, j in np.argwhere(self.maze == 2)][0]
+        self.losing_state = map[State((0, 0), (0, 0), 0)]
         return states, map
 
     def __player_move(self, s, action):
@@ -121,7 +124,7 @@ class Maze:
 
             :return tuple next_cell: Position (x,y) on the maze that agent transitions to.
         """
-        if self.__done(s):
+        if self.done(s):
             return s
         # Compute the future position given current (state, action)
         state = self.states[s]
@@ -145,7 +148,7 @@ class Maze:
 
             :return tuple next_cell: Position (x,y) on the maze that agent transitions to.
         """
-        if self.__done(s_before_player if self.simultaneous else s_after_player):
+        if self.done(s_before_player if self.simultaneous else s_after_player):
             return s_after_player
         # Compute the future position given current (state, action)
         state = self.states[s_after_player]
@@ -162,7 +165,7 @@ class Maze:
             return self.map[State((i, j), (row, col), state.key)]
 
     def __minotaur_moves(self, s_after_player, s_before_player):
-        if self.__done(s_before_player if self.simultaneous else s_after_player):
+        if self.done(s_before_player if self.simultaneous else s_after_player):
             return [s_after_player]
         minotaur_moves = set()
         for a in range(self.n_actions):
@@ -173,7 +176,7 @@ class Maze:
         return minotaur_moves
 
     def __next_states(self, s, action):
-        if self.__done(s):
+        if self.done(s):
             return [s]
         else:
             s_after_player = self.__player_move(s, action)
@@ -186,20 +189,23 @@ class Maze:
     def __minotaur(self, s):
         return self.states[s].minotaur
 
-    def eaten(self, s):
+    def __eaten(self, s):
         return self.__minotaur(s) == self.__player(s)
 
     def __at_exit(self, state):
         return self.maze[self.__player(state)] == 2 and self.states[state].key
 
-    def win(self, state):
-        return self.__at_exit(state) and not self.eaten(state)
+    def __win(self, state):
+        return self.__at_exit(state) and not self.__eaten(state)
 
-    def lose(self, state):
-        return not self.win(state)
+    def done(self, state):
+        return self.win(state) or self.lose(state)
 
-    def __done(self, state):
-        return self.eaten(state) or self.__at_exit(state)
+    def win(self, s):
+        return self.winning_state == s
+
+    def lose(self, s):
+        return self.losing_state == s
 
     def dist(self, s):
         state = self.states[s]
@@ -230,10 +236,12 @@ class Maze:
         return self.start_state()
 
     def step(self, s, a):
+        if self.transition_probabilities[:, s, a].sum() != 1:
+            print(s, a)
         next_s = np.random.choice(
             self.n_states, p=self.transition_probabilities[:, s, a])
         reward = self.rewards[s, a]
-        done = self.__done(s)
+        done = self.done(s)
         return next_s, reward, done, {}
 
     def __transitions(self):
@@ -248,29 +256,35 @@ class Maze:
         # Compute the transition probabilities. Note that the transitions
         # are deterministic.
         for s in range(self.n_states):
-            if self.__done(s):  # logic is already in __next_states
+            if self.done(s):  # logic is already in __next_states
                 transition_probabilities[s, s, :] = 1
+            elif self.__eaten(s):
+                transition_probabilities[self.losing_state, s, :] = 1
+            elif self.__win(s):
+                transition_probabilities[self.winning_state, s, :] = 1
             else:
                 for a in range(self.n_actions):
                     next_states = self.__next_states(s, a)
+                    next_states = [self.winning_state if self.__win(
+                        s2) else s2 for s2 in next_states]
+                    next_states = [self.losing_state if self.__eaten(
+                        s2) else s2 for s2 in next_states]
                     for next_state in next_states:
                         transition_probabilities[next_state,
                                                  s, a] += 1/len(next_states)
 
                     if self.minotaur_direct_move_prob != 0:
-                        for next_state in next_states:
-                            transition_probabilities[next_state,
-                                                     s, a] *= 1-self.minotaur_direct_move_prob
+                        transition_probabilities[:, s,
+                                                 a] *= (1-self.minotaur_direct_move_prob)
                         best_minotaur_move = self.best_minotaur_move(
                             s, next_states)
                         transition_probabilities[best_minotaur_move,
                                                  s, a] += self.minotaur_direct_move_prob
 
-            if self.poison_prob != 0 and not self.__done(s):
-                (i, j) = self.__player(s)
-                transition_probabilities[:, s, :] *= (1-self.poison_prob)
-                transition_probabilities[self.map[State(
-                    (i, j), (i, j), self.states[s].key)], s, :] += self.poison_prob
+                if self.poison_prob != 0:
+                    transition_probabilities[:, s, :] *= (1-self.poison_prob)
+                    transition_probabilities[self.losing_state,
+                                             s, :] += self.poison_prob
 
         for s in range(self.n_states):
             for a in range(self.n_actions):
@@ -291,10 +305,10 @@ class Maze:
             for a in range(self.n_actions):
                 next_s = self.__player_move(s, a)
                 # Reward for being eaten
-                if self.eaten(s):
+                if self.lose(s):
                     rewards[s, a] = self.EATEN_REWARD
                 # Reward for reaching the goal
-                elif self.__at_exit(s):
+                elif self.win(s):
                     rewards[s, a] = self.GOAL_REWARD
                 # Reward for hitting a wall
                 elif self.__player(s) == self.__player(next_s) and a != self.STAY:
@@ -302,10 +316,6 @@ class Maze:
                 # Reward for taking a step to an empty cell that is not the exit
                 else:
                     rewards[s, a] = self.STEP_REWARD
-
-        for s in range(self.n_states):
-            if self.eaten(s):
-                rewards[s, :] = self.EATEN_REWARD
 
         return rewards
 

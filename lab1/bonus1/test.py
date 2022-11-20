@@ -1,4 +1,4 @@
-import maze as mz
+import maze2 as mz
 import numpy as np
 import matplotlib.pyplot as plt
 import qlearning as ql
@@ -24,7 +24,11 @@ env = mz.Maze(maze)
 gamma = 0.95
 # Accuracy treshold
 epsilon = 0.01
-# V, policy = mz.value_iteration(env, gamma, epsilon)
+print("value iteration")
+V, policy = mz.value_iteration(env, gamma, epsilon)
+method = "ValIter"
+path = env.simulate((0, 0), policy, method)
+print(path, len(path))
 gamma = 0.95
 alpha = 0.1
 epsilon = 1/3
