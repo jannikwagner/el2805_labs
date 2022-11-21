@@ -236,8 +236,6 @@ class Maze:
         return self.start_state()
 
     def step(self, s, a):
-        if self.transition_probabilities[:, s, a].sum() != 1:
-            print(s, a)
         next_s = np.random.choice(
             self.n_states, p=self.transition_probabilities[:, s, a])
         reward = self.rewards[s, a]
@@ -289,7 +287,7 @@ class Maze:
         for s in range(self.n_states):
             for a in range(self.n_actions):
                 pass
-                if transition_probabilities[:, s, a].sum() != 1:
+                if abs(transition_probabilities[:, s, a].sum()-1) > 10**-5:
                     print(s, a)
                     print(np.where(transition_probabilities[:, s, a]))
                     print(transition_probabilities[:, s, a][np.where(
