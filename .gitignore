@@ -4,3 +4,6 @@
 # python
 *.pyc
 __pycache__
+
+# results
+results/

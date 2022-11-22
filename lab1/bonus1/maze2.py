@@ -58,7 +58,7 @@ class Maze:
     # Standard reward values
     STEP_REWARD = 0
     GOAL_REWARD = 1
-    IMPOSSIBLE_REWARD = -100
+    IMPOSSIBLE_REWARD = 0
     EATEN_REWARD = 0
 
     def __init__(self, maze, simultaneous=True, minotaur_can_stay=False, poison_prob=1/50, minotaur_direct_move_prob=0.35):
