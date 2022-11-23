@@ -38,7 +38,7 @@ class Maze:
     # Standard reward values
     STEP_REWARD = 0
     GOAL_REWARD = 1
-    IMPOSSIBLE_REWARD = -100
+    IMPOSSIBLE_REWARD = 0
     EATEN_REWARD = 0
 
     def __init__(self, maze, weights=None, random_rewards=False, simultaneous=True, minotaur_can_stay=False, poison_prob=0):
@@ -458,7 +458,7 @@ def draw_maze(maze):
         cell.set_width(1.0/cols)
 
 
-def animate_solution(maze, path):
+def animate_solution(maze, path, folder=None):
 
     # Map a color to each cell in the maze
     col_map = {0: WHITE, 1: BLACK,
@@ -468,7 +468,8 @@ def animate_solution(maze, path):
     rows, cols = maze.shape
 
     # Create figure of the size of the maze
-    fig = plt.figure(1, figsize=(cols, rows))
+    import os
+    os.makedirs(folder, exist_ok=True)
 
     # Remove the axis ticks and add title title
     ax = plt.gca()
@@ -522,6 +523,9 @@ def animate_solution(maze, path):
                                  ].set_facecolor(col_map[maze[path[t-1][1]]])
                 grid.get_celld()[(path[t-1][1])].get_text().set_text('')
         display.display(fig)
+        if folder is not None:
+            display.display(fig)
+            fig.savefig(folder + '/frame_' + str(t) + '.png')
         fig.show()
         display.clear_output(wait=True)
         time.sleep(0.5)

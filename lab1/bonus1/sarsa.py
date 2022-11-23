@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import tqdm
 
 
-def sarsa(env, gamma: float, alpha: float, epsilon: float, n_episodes: int, Q=None) -> Tuple[np.ndarray, np.ndarray]:
+def sarsa(env, gamma: float, alpha: float, epsilon: float, n_episodes: int, delta=1, eps_mode=0, Q=None) -> Tuple[np.ndarray, np.ndarray]:
     """
     Q-Learning algorithm
     :param env: environment
@@ -24,7 +24,12 @@ def sarsa(env, gamma: float, alpha: float, epsilon: float, n_episodes: int, Q=No
     # For each episode
     q_start = np.zeros(n_episodes)
     for episode in tqdm.tqdm(range(n_episodes)):
-        epsilon_episode = epsilon * (1-episode/n_episodes)
+        if eps_mode == 1:
+            epsilon_episode = epsilon * (1-episode/n_episodes)
+        elif eps_mode == 2:
+            epsilon_episode = 1 / (1+episode)**delta
+        else:
+            epsilon_episode = epsilon
         # print("episode =", episode)
         # Reset environment
         s = env.reset()

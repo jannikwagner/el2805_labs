@@ -113,9 +113,9 @@ class Maze:
                 states[s] = state_representation
                 map[state_representation] = s
                 s += 1
-        self.winning_state = [map[State((i, j), (0, 0), 1)]
+        self.winning_state_representative = [map[State((i, j), (0, 0), 1)]
                               for i, j in np.argwhere(self.maze == 2)][0]
-        self.losing_state = map[State((0, 0), (0, 0), 0)]
+        self.losing_state_representative = map[State((0, 0), (0, 0), 0)]
         return states, map
 
     def __player_move(self, s, action):
@@ -202,10 +202,10 @@ class Maze:
         return self.win(state) or self.lose(state)
 
     def win(self, s):
-        return self.winning_state == s
+        return self.winning_state_representative == s
 
     def lose(self, s):
-        return self.losing_state == s
+        return self.losing_state_representative == s
 
     def dist(self, s):
         state = self.states[s]
@@ -257,16 +257,19 @@ class Maze:
             if self.done(s):  # logic is already in __next_states
                 transition_probabilities[s, s, :] = 1
             elif self.__eaten(s):
-                transition_probabilities[self.losing_state, s, :] = 1
+                transition_probabilities[self.losing_state_representative, s, :] = 1
             elif self.__win(s):
-                transition_probabilities[self.winning_state, s, :] = 1
+                transition_probabilities[self.winning_state_representative, s, :] = 1
             else:
                 for a in range(self.n_actions):
                     next_states = self.__next_states(s, a)
-                    next_states = [self.winning_state if self.__win(
+
+                    next_states = [self.winning_state_representative if self.__win(
                         s2) else s2 for s2 in next_states]
-                    next_states = [self.losing_state if self.__eaten(
+                        
+                    next_states = [self.losing_state_representative if self.__eaten(
                         s2) else s2 for s2 in next_states]
+
                     for next_state in next_states:
                         transition_probabilities[next_state,
                                                  s, a] += 1/len(next_states)
@@ -281,7 +284,7 @@ class Maze:
 
                 if self.poison_prob != 0:
                     transition_probabilities[:, s, :] *= (1-self.poison_prob)
-                    transition_probabilities[self.losing_state,
+                    transition_probabilities[self.losing_state_representative,
                                              s, :] += self.poison_prob
 
         for s in range(self.n_states):

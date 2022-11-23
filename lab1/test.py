@@ -13,10 +13,17 @@ maze = np.array([
     [0, 0, 0, 0, 1, 2, 0, 0]
 ])
 
-env = mz.Maze(maze, poison_prob=1/10)
-T = 15
-V, policy = mz.dynamic_programming(env, T)
+env = mz.Maze(maze)
+
+# Finite horizon
+horizon = 20
+# Solve the MDP problem with dynamic programming
+V, policy = mz.dynamic_programming(env, horizon)
+
+# Simulate the shortest path starting from position A
 method = 'DynProg'
-path = env.simulate((0, 0), policy, method)
-print(path)
-# mz.animate_solution(maze, path)
+start = (0, 0)
+path = env.simulate(start, policy, method)
+
+# Show the shortest path
+mz.animate_solution(maze, path, "results/1.c")

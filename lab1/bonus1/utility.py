@@ -8,4 +8,4 @@ def monte_carlo_success(policy, env, N=1000):
         path = env.simulate((0, 0), policy, method)
         if env.win(env.map[path[-1]]):
             n_win += 1
-    print(n_win/N)
+    return (n_win/N)

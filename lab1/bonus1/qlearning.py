@@ -20,31 +20,32 @@ def qlearning(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episod
         Q = np.zeros((env.n_states, env.n_actions))
         Q[:, 1:] = 1 - gamma
         Q[:, 0] = -(1 - gamma)
+    # count state action appearances
     N = np.zeros((env.n_states, env.n_actions), dtype=int)
     # For each episode
-    q_start = np.zeros(n_episodes)
+    v_start = np.zeros(n_episodes)
     for episode in tqdm.tqdm(range(n_episodes)):
-        # print("episode =", episode)
         # Reset environment
         s = env.reset()
         # For each step
-        q_start[episode] = Q[s].max()
+        v_start[episode] = Q[s].max()
         while True:
             # Choose action
-            a = np.random.choice(np.where(Q[s] == Q[s].max())[0])
             if np.random.random() < epsilon:
                 a = np.random.randint(env.n_actions)
+            else:
+                a = np.random.choice(np.where(Q[s] == Q[s].max())[0])
             N[s, a] += 1
             # Take action
-            next_s, r, done, _ = env.step(s, a)
+            s_tp1, r, done, _ = env.step(s, a)
             # Update Q
             Q[s, a] = Q[s, a] + 1/N[s, a]**alpha * \
-                (r + gamma * np.max(Q[next_s]) - Q[s, a])
+                (r + gamma * np.max(Q[s_tp1]) - Q[s, a])
             # Update state
-            s = next_s
+            s = s_tp1
             # If done
             if done:
                 break
     # Initialize policy
     policy = Q.argmax(axis=1)
-    return Q, policy, q_start
+    return Q, policy, v_start
