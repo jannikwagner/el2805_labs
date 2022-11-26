@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import tqdm
 
 
-def qlearning(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episodes: int, Q=None) -> Tuple[np.ndarray, np.ndarray]:
+def qlearning(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episodes: int, Q=None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Q-Learning algorithm
     :param env: environment
@@ -13,7 +13,7 @@ def qlearning(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episod
     :param alpha: learning rate
     :param epsilon: exploration rate
     :param n_episodes: number of episodes
-    :return: Q, policy
+    :return: Q, policy, v_start
     """
     # Initialize Q
     if Q is None:
@@ -22,12 +22,10 @@ def qlearning(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episod
         Q[:, 0] = -(1 - gamma)
     # count state action appearances
     N = np.zeros((env.n_states, env.n_actions), dtype=int)
-    # For each episode
     v_start = np.zeros(n_episodes)
     for episode in tqdm.tqdm(range(n_episodes)):
         # Reset environment
         s = env.reset()
-        # For each step
         v_start[episode] = Q[s].max()
         while True:
             # Choose action

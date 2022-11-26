@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import tqdm
 
 
-def mc(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episodes: int, Q=None) -> Tuple[np.ndarray, np.ndarray]:
+def mc(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episodes: int, Q=None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     MC algorithm
     :param env: environment
@@ -13,7 +13,7 @@ def mc(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episodes: int
     :param alpha: learning rate
     :param epsilon: exploration rate
     :param n_episodes: number of episodes
-    :return: Q, policy
+    :return: Q, policy, v_start
     """
     # Initialize Q
     if Q is None:
@@ -21,14 +21,12 @@ def mc(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episodes: int
         Q[:, 1:] = 1 - gamma
         Q[:, 0] = -(1 - gamma)
     N = np.zeros((env.n_states, env.n_actions), dtype=int)
-    # For each episode
-    q_start = np.zeros(n_episodes)
+    v_start = np.zeros(n_episodes)
     for episode in tqdm.tqdm(range(n_episodes)):
         obs = []
         # Reset environment
         s = env.reset()
-        # For each step
-        q_start[episode] = Q[s].max()
+        v_start[episode] = Q[s].max()
         while True:
             # Choose action
             a = np.random.choice(np.where(Q[s] == Q[s].max())[0])
@@ -36,7 +34,6 @@ def mc(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episodes: int
                 a = np.random.randint(env.n_actions)
             # Take action
             next_s, r, done, _ = env.step(s, a)
-            # Update state
             obs.append((s, a, r))
             s = next_s
             # If done
@@ -56,4 +53,4 @@ def mc(env: mz.Maze, gamma: float, alpha: float, epsilon: float, n_episodes: int
 
     # Initialize policy
     policy = Q.argmax(axis=1)
-    return Q, policy, q_start
+    return Q, policy, v_start

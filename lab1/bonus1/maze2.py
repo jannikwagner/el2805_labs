@@ -114,7 +114,7 @@ class Maze:
                 map[state_representation] = s
                 s += 1
         self.winning_state_representative = [map[State((i, j), (0, 0), 1)]
-                              for i, j in np.argwhere(self.maze == 2)][0]
+                                             for i, j in np.argwhere(self.maze == 2)][0]
         self.losing_state_representative = map[State((0, 0), (0, 0), 0)]
         return states, map
 
@@ -239,6 +239,7 @@ class Maze:
         next_s = np.random.choice(
             self.n_states, p=self.transition_probabilities[:, s, a])
         reward = self.rewards[s, a]
+        # needed instead of self.done(next_s) because we give reward when already in winning state
         done = self.done(s)
         return next_s, reward, done, {}
 
@@ -266,7 +267,7 @@ class Maze:
 
                     next_states = [self.winning_state_representative if self.__win(
                         s2) else s2 for s2 in next_states]
-                        
+
                     next_states = [self.losing_state_representative if self.__eaten(
                         s2) else s2 for s2 in next_states]
 
