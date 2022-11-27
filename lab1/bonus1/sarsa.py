@@ -31,18 +31,19 @@ def sarsa(env, gamma: float, alpha: float, epsilon: float, n_episodes: int, delt
             epsilon_episode = epsilon
         # Reset environment
         s = env.reset()
+        # Choose action
         a = choose_action(env, Q, epsilon_episode, s)
         v_start[episode] = Q[s].max()
         while True:
-            # Choose action
             N[s, a] += 1
             # Take action
             s_tp1, r, done, _ = env.step(s, a)
+            # Choose next action
             a_tp1 = choose_action(env, Q, epsilon_episode, s_tp1)
             # Update Q
             Q[s, a] = Q[s, a] + 1/N[s, a]**alpha * \
                 (r + gamma * Q[s_tp1, a_tp1] - Q[s, a])
-            # Update state
+            # Update state and action
             s = s_tp1
             a = a_tp1
             # If done
