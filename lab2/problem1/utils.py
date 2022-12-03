@@ -65,15 +65,15 @@ class ReplayBuffer:
     def get_batch(self, batch_size):
         batch = self.sample(batch_size)
         states = torch.as_tensor(
-            np.array([exp[0] for exp in batch]), device=self.device)
+            np.stack([exp[0] for exp in batch]), device=self.device)
         actions = torch.as_tensor(
-            np.array([exp[1] for exp in batch]), device=self.device)
+            [exp[1]for exp in batch], device=self.device)
         rewards = torch.as_tensor(
-            np.array([exp[2] for exp in batch], dtype=np.float32), device=self.device)
+            [exp[2] for exp in batch], dtype=torch.float32, device=self.device)
         next_states = torch.as_tensor(
-            np.array([exp[3] for exp in batch]), device=self.device)
+            np.stack([exp[3]for exp in batch]), device=self.device)
         done_list = torch.as_tensor(
-            np.array([exp[4] for exp in batch]), device=self.device)
+            [exp[4] for exp in batch], device=self.device)
         return states, actions, rewards, next_states, done_list
 
 

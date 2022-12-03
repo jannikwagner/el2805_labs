@@ -33,17 +33,17 @@ dim_state = len(env.observation_space.high)  # State dimensionality
 
 # Parameters
 # Number of episodes, recommended: 100 - 1000
-N_episodes = 50
+N_episodes = 1000
 gamma = 0.95  # Value of the discount factor
 epsilon_max = 0.99
-epsilon_min = 0.05
+epsilon_min = 0.35
 decay_episode_portion = 0.9  # recommended: 0.9 - 0.95
 decay_mode = 'exponential'  # possible values: 'linear', 'exponential', 'constant'
 epsilon_decay = EpsilonDecay(
     epsilon_max, epsilon_min, int(decay_episode_portion * N_episodes), mode=decay_mode)
 alpha = 0.001  # learning rate, recommended: 0.001 - 0.0001
 
-batch_size = 32  # batch size N, recommended: 4 − 128
+batch_size = 64  # batch size N, recommended: 4 − 128
 # replay buffer size L, recommended: 5000 - 30000
 buffer_size = 30000
 # C: Number of episodes between each update of the target network
@@ -52,7 +52,9 @@ n_ep_running_average = 50                    # Running average of 50 episodes
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-network = Network1(dim_state, n_actions, hidden_size=32).to(device)
+network = Network1(dim_state, n_actions, hidden_size=128,
+                   hidden_layers=2).to(device)
+print(network)
 optimizer = torch.optim.Adam(network.parameters(), lr=alpha)
 scheduler = torch.optim.lr_scheduler.LambdaLR(
     optimizer, lambda k: 1)

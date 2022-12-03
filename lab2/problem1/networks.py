@@ -5,13 +5,16 @@ import torch
 
 
 class Network1(nn.Module):
-    def __init__(self, n, m, hidden_size=8):
+    def __init__(self, n, m, hidden_size=8, hidden_layers=1, activation=nn.ReLU):
         super(Network1, self).__init__()
-        self.fc1 = nn.Linear(n, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, m)
+        layers = []
+        last = n
+        for i in range(hidden_layers):
+            layers.append(nn.Linear(last, hidden_size))
+            layers.append(activation())
+            last = hidden_size
+        layers.append(nn.Linear(last, m))
+        self.sequence = nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.fc2(x)
-        return x
+        return self.sequence(x)
