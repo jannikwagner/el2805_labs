@@ -22,6 +22,7 @@ from DQN_agent import RandomAgent, DQNAgent
 from networks import Network1
 from utils import ReplayBuffer, EpsilonDecay, plot
 from rl import rl
+from DQN_check_solution import check_solution
 
 
 # Import and initialize the discrete Lunar Laner Environment
@@ -33,27 +34,30 @@ dim_state = len(env.observation_space.high)  # State dimensionality
 
 # Parameters
 # Number of episodes, recommended: 100 - 1000
-N_episodes = 1000
-gamma = 0.95  # Value of the discount factor
-epsilon_max = 0.99
-epsilon_min = 0.35
+N_episodes = 200
+gamma = 0.99  # Value of the discount factor
+epsilon_max = 0.99  # example: 0.99
+epsilon_min = 0.3  # example: 0.05
 decay_episode_portion = 0.9  # recommended: 0.9 - 0.95
-decay_mode = 'exponential'  # possible values: 'linear', 'exponential', 'constant'
+decay_mode = 'linear'  # possible values: 'linear', 'exponential', 'constant'
 epsilon_decay = EpsilonDecay(
     epsilon_max, epsilon_min, int(decay_episode_portion * N_episodes), mode=decay_mode)
-alpha = 0.001  # learning rate, recommended: 0.001 - 0.0001
+alpha = 0.0002  # learning rate, recommended: 0.001 - 0.0001
 
-batch_size = 64  # batch size N, recommended: 4 − 128
+batch_size = 8  # batch size N, recommended: 4 − 128
 # replay buffer size L, recommended: 5000 - 30000
-buffer_size = 30000
+buffer_size = 10000
 # C: Number of episodes between each update of the target network
 target_period = int(buffer_size / batch_size)
-n_ep_running_average = 50                    # Running average of 50 episodes
+n_ep_running_average = 50  # Running average of 50 episodes
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 network = Network1(dim_state, n_actions, hidden_size=128,
                    hidden_layers=2).to(device)
+submission_file = "neural-network-1.pth"
+load_model = False
+network = torch.load(submission_file).to(device) if load_model else network
 print(network)
 optimizer = torch.optim.Adam(network.parameters(), lr=alpha)
 scheduler = torch.optim.lr_scheduler.LambdaLR(
@@ -70,7 +74,7 @@ random_agent = RandomAgent(n_actions)
 episode_reward_list, episode_number_of_steps = rl(
     env, agent, N_episodes, n_ep_running_average)
 
-experiment_name = "DQN1"
+experiment_name = "DQN7"
 plot_folder = "./plots/"
 weights_folder = "./weights/"
 os.makedirs(plot_folder, exist_ok=True)
@@ -78,7 +82,13 @@ os.makedirs(weights_folder, exist_ok=True)
 nn_path = os.path.join(weights_folder, experiment_name + ".pth")
 plot_path = os.path.join(plot_folder, experiment_name + ".png")
 
-torch.save(network.to("cpu").state_dict(), nn_path)
+torch.save(network.to("cpu"), nn_path)
+
+check_solution(network, env, render=True, N_EPISODES=1)
+passed = check_solution(network, env, render=False)
+
+if passed:
+    torch.save(network.to("cpu"), submission_file)
 
 plot(n_ep_running_average, episode_reward_list,
      episode_number_of_steps, plot_path)
