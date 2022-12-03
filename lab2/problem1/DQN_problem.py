@@ -74,7 +74,7 @@ random_agent = RandomAgent(n_actions)
 episode_reward_list, episode_number_of_steps = rl(
     env, agent, N_episodes, n_ep_running_average)
 
-experiment_name = "DQN7"
+experiment_name = "DQN8"
 plot_folder = "./plots/"
 weights_folder = "./weights/"
 os.makedirs(plot_folder, exist_ok=True)
