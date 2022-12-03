@@ -141,8 +141,8 @@ class DQNAgent(Agent):
             Q_phi = self.target_network(next_states)
             y = rewards + (self.gamma *
                            torch.max(Q_phi, dim=1)[0] * (1-done_list.int()))
-            loss = torch.nn.functional.mse_loss(y,
-                                                Q_theta[range(Q_theta.size()[0]), actions.numpy()])
+            loss = self.loss(y,
+                             Q_theta[range(Q_theta.size()[0]), actions.numpy()])
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(

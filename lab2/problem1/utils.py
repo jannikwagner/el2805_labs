@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import random
 from collections import deque
+import matplotlib.pyplot as plt
 
 
 def running_average(x, N):
@@ -14,6 +15,33 @@ def running_average(x, N):
     else:
         y = np.zeros_like(x)
     return y
+
+# Plot Rewards and steps
+
+
+def plot(n_ep_running_average, episode_reward_list, episode_number_of_steps, plot_path):
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
+    n = len(episode_reward_list)
+    x = range(1, n+1)
+    ax[0].plot(x, episode_reward_list, label='Episode reward')
+    ax[0].plot(x, running_average(
+        episode_reward_list, n_ep_running_average), label='Avg. episode reward')
+    ax[0].set_xlabel('Episodes')
+    ax[0].set_ylabel('Total reward')
+    ax[0].set_title('Total Reward vs Episodes')
+    ax[0].legend()
+    ax[0].grid(alpha=0.3)
+
+    ax[1].plot(x, episode_number_of_steps, label='Steps per episode')
+    ax[1].plot(x, running_average(
+        episode_number_of_steps, n_ep_running_average), label='Avg. number of steps per episode')
+    ax[1].set_xlabel('Episodes')
+    ax[1].set_ylabel('Total number of steps')
+    ax[1].set_title('Total number of steps vs Episodes')
+    ax[1].legend()
+    ax[1].grid(alpha=0.3)
+    fig.savefig(plot_path)
+    plt.show()
 
 
 class ReplayBuffer:
