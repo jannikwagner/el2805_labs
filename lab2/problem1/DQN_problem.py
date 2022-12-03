@@ -19,7 +19,7 @@ import gym
 import torch
 import matplotlib.pyplot as plt
 from tqdm import trange
-from DQN_agent import RandomAgent
+from DQN_agent import RandomAgent, Agent, DQNAgent
 import random
 from networks import Network1
 import copy
@@ -46,7 +46,6 @@ batch_size = 32  # batch size N, recommended: 4 − 128
 buffer_size = 10000
 # C: Number of episodes between each update of the target network
 target_period = int(buffer_size / batch_size)
-CLIPPING_VALUE = 1.0  # recommended: 0.5 - 2.0
 
 n_actions = env.action_space.n               # Number of available actions
 dim_state = len(env.observation_space.high)  # State dimensionality
@@ -59,69 +58,37 @@ optimizer = torch.optim.Adam(network.parameters(), lr=alpha)
 scheduler = torch.optim.lr_scheduler.LambdaLR(
     optimizer, lambda k: 1)
 
+replay_buffer = ReplayBuffer(buffer_size, device)
 
-def dqn(env: gym.Env,
-        network: torch.nn.Module,
-        optimizer: torch.optim.Optimizer,
-        scheduler: torch.optim.lr_scheduler._LRScheduler,
-        gamma: float,
-        buffer_size: int,
+agent = DQNAgent(n_actions, network, optimizer, scheduler, replay_buffer,
+                 epsilon_decay, device, gamma, batch_size, target_period)
+
+random_agent = RandomAgent(n_actions)
+
+
+def rl(env: gym.Env,
+        agent: Agent,
         N_episodes: int,
-        target_period: int,
-        batch_size: int,
-        epsilon_decay: EpsilonDecay):
-
+        n_ep_running_average: int,):
     # We will use these variables to compute the average episodic reward and
     # the average number of steps per episode
     episode_reward_list = []       # this list contains the total reward per episode
     episode_number_of_steps = []   # this list contains the number of steps per episode
 
-    # initialize the replay buffer
-    replay_buffer = ReplayBuffer(buffer_size, device)
-    target_network = copy.deepcopy(network).to(device).eval()
-
     EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
-    step = 0
     for k in EPISODES:
         # Reset enviroment data and initialize variables
         done = False
         s = env.reset()
         total_episode_reward = 0.
         t = 0
-        epsilon = epsilon_decay.get(k)
+        agent.episode_start()
         while not done:
-            step += 1
-            if step % target_period == 0:
-                target_network = copy.deepcopy(network).to(device).eval()
-            if random.random() < epsilon:
-                a = random.randint(0, n_actions-1)
-            else:
-                Q_s = network(torch.as_tensor(
-                    s, dtype=torch.float32).to(device))
-                arg_max = torch.where(Q_s == Q_s.max())[0]
-                i = random.randint(0, len(arg_max)-1)
-                a = arg_max[i].item()
+            a = agent.forward(s)
 
             # Get next state and reward.
             next_s, r, done, _ = env.step(a)
-            obs = (s, a, r, next_s, done)
-            replay_buffer.add(obs)
-
-            if len(replay_buffer) >= batch_size:
-                states, actions, rewards, next_states, done_list = replay_buffer.get_batch(
-                    batch_size)
-                optimizer.zero_grad()
-                Q_theta = network(states)
-                Q_phi = target_network(next_states)
-                y = rewards + (gamma *
-                               torch.max(Q_phi, dim=1)[0] * (1-done_list.int()))
-                loss = torch.nn.functional.mse_loss(y,
-                                                    Q_theta[range(batch_size), actions.numpy()])
-
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(
-                    network.parameters(), CLIPPING_VALUE)
-                optimizer.step()
+            agent.backward(next_s, r, done)
 
             # Update episode reward
             total_episode_reward += r
@@ -130,7 +97,6 @@ def dqn(env: gym.Env,
             s = next_s
             t += 1
 
-        scheduler.step()
         # Append episode reward and total number of steps
         episode_reward_list.append(total_episode_reward)
         episode_number_of_steps.append(t)
@@ -148,18 +114,17 @@ def dqn(env: gym.Env,
 
         # Updates the tqdm update bar with fresh information
         EPISODES.set_description(
-            "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{} - lr: {:.5f} - eps: {:.3f}".format(
+            "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{} - {}".format(
                 k, total_episode_reward, t,
                 running_average(episode_reward_list, n_ep_running_average)[-1],
                 running_average(episode_number_of_steps,
                                 n_ep_running_average)[-1],
-                scheduler.get_last_lr()[0],
-                epsilon))
+                agent.status_text()))
     return episode_reward_list, episode_number_of_steps
 
 
-episode_reward_list, episode_number_of_steps = dqn(
-    env, network, optimizer, scheduler, gamma, buffer_size, N_episodes, target_period, batch_size, epsilon_decay)
+episode_reward_list, episode_number_of_steps = rl(
+    env, agent, N_episodes, n_ep_running_average)
 
 nn_file_name = "neural-network-1.pth"
 torch.save(network.to("cpu").state_dict(), nn_file_name)
