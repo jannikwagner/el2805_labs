@@ -99,9 +99,10 @@ class DQNAgent(Agent):
 
     def episode_start(self):
         ''' Called at the beginning of each episode '''
-        self.k += 1
         self.epsilon = self.epsilon_decay.get(self.k)
-        self.scheduler.step()
+        if self.k != 0:
+            self.scheduler.step()
+        self.k += 1
         super().episode_start()
 
     def forward(self, state: np.ndarray) -> int:
