@@ -71,6 +71,33 @@ class ReplayBuffer:
         return states, actions, rewards, next_states, done_list
 
 
+class EpsilonDecay:
+    def __init__(self, start, end, Z, mode='linear'):
+        self.start = start
+        self.end = end
+        self.Z = Z
+        self.mode = mode
+
+    def linear(self, k):
+        return max(self.end, self.start - k * (self.start - self.end) / self.Z)
+
+    def exponential(self, k):
+        return max(self.end, self.start * (self.end / self.start) ** (k / self.Z))
+
+    def constant(self, k):
+        return self.start
+
+    def get(self, k):
+        if self.mode == 'linear':
+            return self.linear(k)
+        elif self.mode == 'exponential':
+            return self.exponential(k)
+        elif self.mode == 'constant':
+            return self.constant(k)
+        else:
+            raise ValueError('Unknown mode')
+
+
 # Import and initialize the discrete Lunar Laner Environment
 env = gym.make('LunarLander-v2')
 env.reset()
@@ -79,7 +106,12 @@ env.reset()
 # Number of episodes, recommended: 100 - 1000
 N_episodes = 400
 gamma = 0.95                       # Value of the discount factor
-epsilon = 0.1  # exploration param TODO: decreasing epsilon
+epsilon_max = 0.99
+epsilon_min = 0.05
+decay_episode_portion = 0.9  # recommended: 0.9 - 0.95
+decay_mode = 'linear'
+epsilon_decay = EpsilonDecay(
+    epsilon_max, epsilon_min, decay_episode_portion * N_episodes, mode=decay_mode)
 alpha = 0.001  # learning rate, recommended: 0.001 - 0.0001
 batch_size = 32  # batch size N, recommended: 4 − 128
 # replay buffer size L, recommended: 5000 - 30000
@@ -109,7 +141,7 @@ def dqn(env: gym.Env,
         N_episodes: int,
         target_period: int,
         batch_size: int,
-        epsilon: float):
+        epsilon_decay: EpsilonDecay):
 
     # We will use these variables to compute the average episodic reward and
     # the average number of steps per episode
@@ -128,6 +160,7 @@ def dqn(env: gym.Env,
         s = env.reset()
         total_episode_reward = 0.
         t = 0
+        epsilon = epsilon_decay.get(k)
         while not done:
             step += 1
             if step % target_period == 0:
@@ -158,9 +191,9 @@ def dqn(env: gym.Env,
                                                     Q_theta[range(batch_size), actions.numpy()])
 
                 loss.backward()
-                optimizer.step()
                 torch.nn.utils.clip_grad_norm(
                     network.parameters(), CLIPPING_VALUE)
+                optimizer.step()
 
             # Update episode reward
             total_episode_reward += r
@@ -179,17 +212,18 @@ def dqn(env: gym.Env,
 
         # Updates the tqdm update bar with fresh information
         EPISODES.set_description(
-            "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{} - lr: {}".format(
+            "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{} - lr: {} - eps: {}".format(
                 k, total_episode_reward, t,
                 running_average(episode_reward_list, n_ep_running_average)[-1],
                 running_average(episode_number_of_steps,
                                 n_ep_running_average)[-1],
-                scheduler.get_lr()[0]))
+                scheduler.get_lr()[0],
+                epsilon))
     return episode_reward_list, episode_number_of_steps
 
 
 episode_reward_list, episode_number_of_steps = dqn(
-    env, network, optimizer, scheduler, gamma, buffer_size, N_episodes, target_period, batch_size, epsilon)
+    env, network, optimizer, scheduler, gamma, buffer_size, N_episodes, target_period, batch_size, epsilon_decay)
 
 nn_file_name = "neural-network-1.pth"
 torch.save(network.to("cpu").state_dict(), nn_file_name)
