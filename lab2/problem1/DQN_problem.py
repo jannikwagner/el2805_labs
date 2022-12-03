@@ -39,9 +39,10 @@ def running_average(x, N):
 
 
 class ReplayBuffer:
-    def __init__(self, buffer_size, device):
+    def __init__(self, buffer_size, device, cer=True):
         self.buffer = deque(maxlen=buffer_size)
         self.device = device
+        self.cer = cer
 
     def __len__(self):
         return len(self.buffer)
@@ -50,8 +51,10 @@ class ReplayBuffer:
         self.buffer.append(experience)
 
     def sample(self, n):
-        indices = np.random.choice(len(self), n, replace=False)
-        return [self.buffer[i] for i in indices]
+        samples = random.sample(self.buffer, n)
+        if self.cer:
+            samples[0] = self.buffer[-1]
+        return samples
 
     def get_batch(self, batch_size):
         batch = self.sample(batch_size)
@@ -76,8 +79,8 @@ env.reset()
 # Number of episodes, recommended: 100 - 1000
 N_episodes = 400
 gamma = 0.95                       # Value of the discount factor
-epsilon = 0.1  # exploration param
-alpha = 0.0001  # learning rate, recommended: 0.001 - 0.0001
+epsilon = 0.1  # exploration param TODO: decreasing epsilon
+alpha = 0.001  # learning rate, recommended: 0.001 - 0.0001
 batch_size = 32  # batch size N, recommended: 4 − 128
 # replay buffer size L, recommended: 5000 - 30000
 buffer_size = 10000
@@ -151,8 +154,8 @@ def dqn(env: gym.Env,
                 Q_phi = target_network(next_states)
                 y = rewards + (gamma *
                                torch.max(Q_phi, dim=1)[0] * (1-done_list.int()))
-                loss = torch.nn.functional.mse_loss(
-                    Q_theta[range(batch_size), actions.numpy()], y)
+                loss = torch.nn.functional.mse_loss(y,
+                                                    Q_theta[range(batch_size), actions.numpy()])
 
                 loss.backward()
                 optimizer.step()
