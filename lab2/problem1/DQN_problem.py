@@ -109,9 +109,9 @@ gamma = 0.95                       # Value of the discount factor
 epsilon_max = 0.99
 epsilon_min = 0.05
 decay_episode_portion = 0.9  # recommended: 0.9 - 0.95
-decay_mode = 'linear'
+decay_mode = 'exponential'  # possible values: 'linear', 'exponential', 'constant'
 epsilon_decay = EpsilonDecay(
-    epsilon_max, epsilon_min, decay_episode_portion * N_episodes, mode=decay_mode)
+    epsilon_max, epsilon_min, int(decay_episode_portion * N_episodes), mode=decay_mode)
 alpha = 0.001  # learning rate, recommended: 0.001 - 0.0001
 batch_size = 32  # batch size N, recommended: 4 − 128
 # replay buffer size L, recommended: 5000 - 30000
@@ -191,7 +191,7 @@ def dqn(env: gym.Env,
                                                     Q_theta[range(batch_size), actions.numpy()])
 
                 loss.backward()
-                torch.nn.utils.clip_grad_norm(
+                torch.nn.utils.clip_grad_norm_(
                     network.parameters(), CLIPPING_VALUE)
                 optimizer.step()
 
@@ -207,17 +207,25 @@ def dqn(env: gym.Env,
         episode_reward_list.append(total_episode_reward)
         episode_number_of_steps.append(t)
 
+        MIN_EPISODES = 100
+        n_success = 50
+        avg_success = 50
+        if k > MIN_EPISODES:
+            if np.mean(episode_reward_list[-n_success:]) > avg_success:
+                print("Early stopping SUCCESS")
+                break
+
         # Close environment
         env.close()
 
         # Updates the tqdm update bar with fresh information
         EPISODES.set_description(
-            "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{} - lr: {} - eps: {}".format(
+            "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{} - lr: {:.5f} - eps: {:.3f}".format(
                 k, total_episode_reward, t,
                 running_average(episode_reward_list, n_ep_running_average)[-1],
                 running_average(episode_number_of_steps,
                                 n_ep_running_average)[-1],
-                scheduler.get_lr()[0],
+                scheduler.get_last_lr()[0],
                 epsilon))
     return episode_reward_list, episode_number_of_steps
 
@@ -231,9 +239,10 @@ torch.save(network.to("cpu").state_dict(), nn_file_name)
 
 # Plot Rewards and steps
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
-ax[0].plot([i for i in range(1, N_episodes+1)],
-           episode_reward_list, label='Episode reward')
-ax[0].plot([i for i in range(1, N_episodes+1)], running_average(
+n = len(episode_reward_list)
+x = range(1, n+1)
+ax[0].plot(x, episode_reward_list, label='Episode reward')
+ax[0].plot(x, running_average(
     episode_reward_list, n_ep_running_average), label='Avg. episode reward')
 ax[0].set_xlabel('Episodes')
 ax[0].set_ylabel('Total reward')
@@ -241,9 +250,8 @@ ax[0].set_title('Total Reward vs Episodes')
 ax[0].legend()
 ax[0].grid(alpha=0.3)
 
-ax[1].plot([i for i in range(1, N_episodes+1)],
-           episode_number_of_steps, label='Steps per episode')
-ax[1].plot([i for i in range(1, N_episodes+1)], running_average(
+ax[1].plot(x, episode_number_of_steps, label='Steps per episode')
+ax[1].plot(x, running_average(
     episode_number_of_steps, n_ep_running_average), label='Avg. number of steps per episode')
 ax[1].set_xlabel('Episodes')
 ax[1].set_ylabel('Total number of steps')
