@@ -36,7 +36,7 @@ submission_file = "neural-network-1.pth"
 
 # Parameters
 # Number of episodes, recommended: 100 - 1000
-experiment_name = "DQN21"
+experiment_name = "DQN25"
 
 N_episodes = 200
 gamma = 0.99  # Value of the discount factor
@@ -46,7 +46,7 @@ decay_episode_portion = 0.9  # recommended: 0.9 - 0.95
 decay_mode = 'linear'  # possible values: 'linear', 'exponential', 'constant'
 alpha = 0.0002  # learning rate, recommended: 0.001 - 0.0001
 
-batch_size = 64  # batch size N, recommended: 4 − 128, 64 seems to work well
+batch_size = 8  # batch size N, recommended: 4 − 128, 64 seems to work well
 # replay buffer size L, recommended: 5000 - 30000
 buffer_size = 10000
 # C: Number of updates between each update of the target network, recommended: L/N
