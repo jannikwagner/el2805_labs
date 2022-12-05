@@ -19,7 +19,7 @@ def running_average(x, N):
 # Plot Rewards and steps
 
 
-def plot(n_ep_running_average, episode_reward_list, episode_number_of_steps, plot_path):
+def plot_training(n_ep_running_average, episode_reward_list, episode_number_of_steps, plot_path):
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
     n = len(episode_reward_list)
     x = range(1, n+1)

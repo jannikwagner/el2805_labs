@@ -20,7 +20,7 @@ import gym
 import torch
 from DQN_agent import RandomAgent, DQNAgent, SimulationAgent
 from networks import Network1
-from utils import ReplayBuffer, EpsilonDecay, plot
+from utils import ReplayBuffer, EpsilonDecay, plot_training
 from rl import rl
 from DQN_check_solution import check_solution
 
@@ -99,5 +99,5 @@ passed = check_solution(simulation_agent, env, render=False)
 if passed:
     torch.save(network.to("cpu"), submission_file)
 
-plot(n_ep_running_average, episode_reward_list,
-     episode_number_of_steps, plot_path)
+plot_training(n_ep_running_average, episode_reward_list,
+              episode_number_of_steps, plot_path)

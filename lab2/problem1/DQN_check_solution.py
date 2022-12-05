@@ -105,7 +105,7 @@ def simulate(agent, env, render=False):
 
 if __name__ == "__main__":
     file_path = 'neural-network-1.pth'
-    file_path = 'weights/DQN8.pth'
+    # file_path = 'weights/DQN8.pth'
 
     # Import and initialize Mountain Car Environment
     env = gym.make('LunarLander-v2')
