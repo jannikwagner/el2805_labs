@@ -116,7 +116,7 @@ class DQNAgent(Agent):
         else:
             Q_s = self.network(torch.as_tensor(
                 state, dtype=torch.float32).to(self.device))
-            arg_max = torch.where(Q_s == Q_s.max())[0]
+            arg_max = torch.where(Q_s == Q_s.max())[-1]
             i = random.randint(0, len(arg_max)-1)
             a = arg_max[i].item()
 
@@ -155,3 +155,20 @@ class DQNAgent(Agent):
         return "lr: {} - eps: {}".format(
             round(self.scheduler.get_last_lr()[0], 5),
             round(self.epsilon, 3))
+
+
+class SimulationAgent(Agent):
+    def __init__(self, network):
+        super(SimulationAgent, self).__init__(0)
+        self.network = network
+
+    def forward(self, state: np.ndarray) -> int:
+        Q_s = self.network(torch.as_tensor(
+            state, dtype=torch.float32))
+        arg_max = torch.where(Q_s == Q_s.max())[-1]
+        i = random.randint(0, len(arg_max)-1)
+        a = arg_max[i].item()
+
+        self.last_state = state
+        self.last_action = a
+        return a

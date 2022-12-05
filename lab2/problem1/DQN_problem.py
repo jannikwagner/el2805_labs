@@ -18,7 +18,7 @@ import os
 import numpy as np
 import gym
 import torch
-from DQN_agent import RandomAgent, DQNAgent
+from DQN_agent import RandomAgent, DQNAgent, SimulationAgent
 from networks import Network1
 from utils import ReplayBuffer, EpsilonDecay, plot
 from rl import rl
@@ -36,7 +36,7 @@ submission_file = "neural-network-1.pth"
 
 # Parameters
 # Number of episodes, recommended: 100 - 1000
-experiment_name = "DQN25"
+experiment_name = "DQN26"
 
 N_episodes = 200
 gamma = 0.99  # Value of the discount factor
@@ -75,6 +75,7 @@ replay_buffer = ReplayBuffer(buffer_size, device)
 
 agent = DQNAgent(n_actions, network, optimizer, scheduler, replay_buffer,
                  epsilon_decay, device, gamma, batch_size, target_period)
+simulation_agent = SimulationAgent(network)
 
 random_agent = RandomAgent(n_actions)
 
@@ -92,8 +93,8 @@ plot_path = os.path.join(plot_folder, experiment_name + ".png")
 
 torch.save(network.to("cpu"), nn_path)
 
-check_solution(network, env, render=True, N_EPISODES=1)
-passed = check_solution(network, env, render=False)
+check_solution(simulation_agent, env, render=True, N_EPISODES=1)
+passed = check_solution(simulation_agent, env, render=False)
 
 if passed:
     torch.save(network.to("cpu"), submission_file)

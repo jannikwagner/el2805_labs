@@ -18,6 +18,7 @@ import numpy as np
 import gym
 import torch
 from tqdm import trange
+from DQN_agent import SimulationAgent, RandomAgent
 from utils import running_average
 
 
@@ -35,38 +36,18 @@ N_EPISODES = 50            # Number of episodes to run for trainings
 CONFIDENCE_PASS = 50
 
 
-def check_solution(model, env, render, N_EPISODES=N_EPISODES, CONFIDENCE_PASS=CONFIDENCE_PASS):
+def check_solution(agent, env, render=False, N_EPISODES=N_EPISODES, CONFIDENCE_PASS=CONFIDENCE_PASS):
     episode_reward_list = []  # Used to store episodes reward
 
-# Simulate episodes
+    # Simulate episodes
     print('Checking solution...')
     EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
     for i in EPISODES:
         EPISODES.set_description("Episode {}".format(i))
-    # Reset enviroment data
-        done = False
-        state = env.reset()
-        total_episode_reward = 0.
-        if render:
-            env.render()
-        while not done:
-            # Get next state and reward.  The done variable
-            # will be True if you reached the goal position,
-            # False otherwise
-            q_values = model(torch.tensor([state]))
-            _, action = torch.max(q_values, axis=1)
-            next_state, reward, done, _ = env.step(action.item())
+        # Reset enviroment data
+        total_episode_reward, *_ = simulate(agent, env, render)
 
-            if render:
-                env.render()
-
-        # Update episode reward
-            total_episode_reward += reward
-
-        # Update state for next iteration
-            state = next_state
-
-    # Append episode reward
+        # Append episode reward
         episode_reward_list.append(total_episode_reward)
         if render:
             print(f'Episode {i} reward: {total_episode_reward}')
@@ -88,18 +69,60 @@ def check_solution(model, env, render, N_EPISODES=N_EPISODES, CONFIDENCE_PASS=CO
     return passed
 
 
+def simulate(agent, env, render=False):
+    done = False
+    state = env.reset()
+    total_episode_reward = 0.
+    states = []
+    actions = []
+    rewards = []
+    if render:
+        env.render()
+    while True:
+        # Get next state and reward.  The done variable
+        # will be True if you reached the goal position,
+        # False otherwise
+        action = agent.forward(torch.as_tensor([state]))
+
+        states.append(state)
+        actions.append(action)
+        if render:
+            env.render()
+
+        if done:
+            break
+
+        next_state, reward, done, _ = env.step(action)
+
+        # Update episode reward
+        total_episode_reward += reward
+        rewards.append(reward)
+
+        # Update state for next iteration
+        state = next_state
+    return total_episode_reward, states, actions, rewards + [0]
+
+
 if __name__ == "__main__":
     file_path = 'neural-network-1.pth'
-    # Load model
-
-    model = load_model(file_path)
+    file_path = 'weights/DQN8.pth'
 
     # Import and initialize Mountain Car Environment
     env = gym.make('LunarLander-v2')
     env.reset()
+    n_actions = env.action_space.n
+
+    # Load model
+    model = load_model(file_path)
+    agent = SimulationAgent(model)
+    random_agent = RandomAgent(n_actions)
 
     # Parameters
     render = False
     # Reward
 
-    passed = check_solution(model, env, render, N_EPISODES, CONFIDENCE_PASS)
+    print("DQN8 agent")
+    passed = check_solution(agent, env, render, N_EPISODES, CONFIDENCE_PASS)
+    print("Random agent")
+    passed = check_solution(random_agent, env, render,
+                            N_EPISODES, CONFIDENCE_PASS)
