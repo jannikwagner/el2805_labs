@@ -13,6 +13,10 @@
 # Last update: 6th October 2020, by alessior@kth.se
 #
 
+# Students:
+# Lea Keller - lmjke@kth.se - 19980209-4889
+# Jannik Wagner - wagne@kth.se - 19971213-1433
+
 # Load packages
 import os
 import numpy as np
